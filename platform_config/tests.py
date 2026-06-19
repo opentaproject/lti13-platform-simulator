@@ -44,3 +44,12 @@ class KeyGenerationTests(TestCase):
         self.assertEqual(jwk["kid"], key.kid)
         self.assertEqual(jwk["kty"], "RSA")
         self.assertEqual(jwk["alg"], "RS256")
+
+
+class JwksViewTests(TestCase):
+    def test_jwks_endpoint_returns_one_rsa_key(self):
+        response = self.client.get("/jwks.json")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data["keys"]), 1)
+        self.assertEqual(data["keys"][0]["kty"], "RSA")
