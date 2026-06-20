@@ -56,3 +56,19 @@ class LTILaunchStateTests(TestCase):
         state.created_at = timezone.now() - timedelta(minutes=10)
         state.save(update_fields=["created_at"])
         self.assertTrue(state.is_expired())
+
+
+class ToolListViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="carol", password="pw12345")
+        self.registration = make_registration()
+
+    def test_requires_login(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 302)
+
+    def test_lists_registrations_when_logged_in(self):
+        self.client.force_login(self.user)
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.registration.name)
