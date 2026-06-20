@@ -72,3 +72,19 @@ class ToolListViewTests(TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.registration.name)
+
+
+class LaunchInitViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="dave", password="pw12345")
+        self.registration = make_registration()
+
+    def test_creates_launch_state_and_renders_auto_submit_form(self):
+        self.client.force_login(self.user)
+        response = self.client.get(f"/launch/{self.registration.id}/init/")
+        self.assertEqual(response.status_code, 200)
+
+        launch_state = LTILaunchState.objects.get(user=self.user, registration=self.registration)
+        self.assertContains(response, self.registration.oidc_init_url)
+        self.assertContains(response, launch_state.state)
+        self.assertContains(response, self.registration.client_id)
