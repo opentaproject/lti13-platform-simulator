@@ -9,14 +9,7 @@
   </p>
   <ul>
     {% for registration in registrations %}
-      <li>
-        {% url 'launch_init' registration.id as launch_url %}
-        {% if launch_url %}
-          <a href="{{ launch_url }}">{{ registration.name }}</a>
-        {% else %}
-          {{ registration.name }}
-        {% endif %}
-      </li>
+      <li><a href="{% url 'launch_init' registration.id %}">{{ registration.name }}</a></li>
     {% endfor %}
   </ul>
 </body>
