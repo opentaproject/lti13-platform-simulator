@@ -12,4 +12,5 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(next_page="login"), name="logout"),
     path("", launch_views.tool_list, name="tool_list"),
     path("launch/<int:registration_id>/init/", launch_views.launch_init, name="launch_init"),
+    path("auth/callback/", launch_views.auth_callback, name="auth_callback"),
 ]

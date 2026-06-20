@@ -163,3 +163,68 @@ class JwtClaimTests(TestCase):
 
         header = pyjwt.get_unverified_header(token)
         self.assertEqual(header["kid"], platform_key.kid)
+
+
+class AuthCallbackViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="erin", password="pw12345")
+        self.registration = make_registration()
+
+    def _create_launch_state(self):
+        self.client.force_login(self.user)
+        self.client.get(f"/launch/{self.registration.id}/init/")
+        return LTILaunchState.objects.get(user=self.user, registration=self.registration)
+
+    def test_valid_callback_signs_and_posts_jwt_then_deletes_state(self):
+        launch_state = self._create_launch_state()
+
+        response = self.client.get(
+            "/auth/callback/",
+            {
+                "login_hint": launch_state.state,
+                "client_id": self.registration.client_id,
+                "nonce": "tool-nonce-xyz",
+                "state": "tool-state-xyz",
+                "redirect_uri": self.registration.launch_url,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.registration.launch_url)
+        self.assertContains(response, "tool-state-xyz")
+        self.assertFalse(LTILaunchState.objects.filter(id=launch_state.id).exists())
+
+    def test_unknown_login_hint_returns_400(self):
+        response = self.client.get(
+            "/auth/callback/",
+            {"login_hint": "does-not-exist", "client_id": "x", "nonce": "n", "state": "s"},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_client_id_mismatch_returns_400(self):
+        launch_state = self._create_launch_state()
+        response = self.client.get(
+            "/auth/callback/",
+            {
+                "login_hint": launch_state.state,
+                "client_id": "wrong-client-id",
+                "nonce": "n",
+                "state": "s",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_expired_launch_state_returns_400(self):
+        launch_state = self._create_launch_state()
+        launch_state.created_at = timezone.now() - timedelta(minutes=10)
+        launch_state.save(update_fields=["created_at"])
+
+        response = self.client.get(
+            "/auth/callback/",
+            {
+                "login_hint": launch_state.state,
+                "client_id": self.registration.client_id,
+                "nonce": "n",
+                "state": "s",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
