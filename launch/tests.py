@@ -1,12 +1,16 @@
 from datetime import timedelta
 
+import jwt as pyjwt
+from cryptography.hazmat.primitives import serialization
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
 from platform_config.models import LTIToolRegistration
+from platform_config.keys import get_or_create_platform_key
 
 from .models import UserProfile, LTILaunchState
+from .jwt_utils import build_claims, sign_launch_jwt
 
 
 class UserProfileSignalTests(TestCase):
@@ -88,3 +92,74 @@ class LaunchInitViewTests(TestCase):
         self.assertContains(response, self.registration.oidc_init_url)
         self.assertContains(response, launch_state.state)
         self.assertContains(response, self.registration.client_id)
+
+
+class JwtClaimTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="instructor1",
+            email="instructor1@example.org",
+            first_name="Ines",
+            last_name="Tructor",
+        )
+        self.user.profile.role = UserProfile.INSTRUCTOR
+        self.user.profile.save()
+        self.registration = make_registration()
+
+    def test_build_claims_contains_required_fields(self):
+        claims = build_claims(self.user, self.registration, tool_nonce="tool-nonce-1")
+        self.assertEqual(claims["iss"], self.registration.issuer)
+        self.assertEqual(claims["sub"], str(self.user.id))
+        self.assertEqual(claims["aud"], self.registration.client_id)
+        self.assertEqual(claims["nonce"], "tool-nonce-1")
+        self.assertEqual(
+            claims["https://purl.imsglobal.org/spec/lti/claim/message_type"],
+            "LtiResourceLinkRequest",
+        )
+        self.assertEqual(
+            claims["https://purl.imsglobal.org/spec/lti/claim/roles"],
+            ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
+        )
+        self.assertEqual(
+            claims["https://purl.imsglobal.org/spec/lti/claim/resource_link"],
+            {"id": self.registration.resource_link_id},
+        )
+        self.assertEqual(
+            claims["https://purl.imsglobal.org/spec/lti/claim/context"],
+            {
+                "id": self.registration.context_id,
+                "label": self.registration.context_label,
+                "title": self.registration.context_title,
+            },
+        )
+        self.assertEqual(claims["email"], "instructor1@example.org")
+        self.assertEqual(claims["given_name"], "Ines")
+        self.assertEqual(claims["family_name"], "Tructor")
+
+    def test_student_role_maps_to_learner(self):
+        self.user.profile.role = UserProfile.STUDENT
+        self.user.profile.save()
+        claims = build_claims(self.user, self.registration, tool_nonce="n")
+        self.assertEqual(
+            claims["https://purl.imsglobal.org/spec/lti/claim/roles"],
+            ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+        )
+
+    def test_sign_launch_jwt_is_verifiable_with_the_published_public_key(self):
+        token = sign_launch_jwt(self.user, self.registration, tool_nonce="tool-nonce-1")
+        platform_key = get_or_create_platform_key()
+        public_key = serialization.load_pem_public_key(
+            platform_key.public_key_pem.encode("utf-8")
+        )
+
+        decoded = pyjwt.decode(
+            token,
+            key=public_key,
+            algorithms=["RS256"],
+            audience=self.registration.client_id,
+        )
+        self.assertEqual(decoded["sub"], str(self.user.id))
+        self.assertEqual(decoded["nonce"], "tool-nonce-1")
+
+        header = pyjwt.get_unverified_header(token)
+        self.assertEqual(header["kid"], platform_key.kid)
