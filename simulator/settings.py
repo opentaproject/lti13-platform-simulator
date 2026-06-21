@@ -25,7 +25,9 @@ SECRET_KEY = "django-insecure-takgt+21su^az+yx)kyv9k7h1eva*v2*q*$)96-rieq^3vu2+2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["osx.openta.dev", "localhost"]
+
+CSRF_TRUSTED_ORIGINS = ["https://osx.openta.dev"]
 
 
 # Application definition
