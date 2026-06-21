@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head><title>Completing launch</title></head>
+<body onload="document.forms[0].submit()">
+  <p>Completing launch...</p>
+  <form method="post" action="{{ launch_url }}">
+    <input type="hidden" name="id_token" value="{{ id_token }}">
+    <input type="hidden" name="state" value="{{ state }}">
+    <button type="submit">Continue</button>
+  </form>
+</body>
+</html>
