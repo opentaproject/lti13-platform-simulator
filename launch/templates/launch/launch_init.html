@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head><title>Launching {{ registration.name }}</title></head>
-<body onload="document.forms[0].submit()">
+<body>
   <p>Launching {{ registration.name }}...</p>
   <form method="post" action="{{ registration.oidc_init_url }}">
-    <input type="hidden" name="iss" value="{{ registration.issuer }}">
-    <input type="hidden" name="login_hint" value="{{ login_hint }}">
-    <input type="hidden" name="lti_message_hint" value="{{ login_hint }}">
-    <input type="hidden" name="target_link_uri" value="{{ registration.target_link_uri }}">
-    <input type="hidden" name="client_id" value="{{ registration.client_id }}">
+    <label>iss <input type="text" name="iss" value="{{ registration.issuer }}" size="60"></label><br>
+    <label>login_hint <input type="text" name="login_hint" value="{{ login_hint }}" size="60"></label> ({{ login_hint_clear }})<br>
+    <label>lti_message_hint <input type="text" name="lti_message_hint" value="{{ login_hint }}" size="60"></label> ({{ login_hint_clear }})<br>
+    <label>target_link_uri <input type="text" name="target_link_uri" value="{{ registration.target_link_uri }}" size="60"></label><br>
+    <label>client_id <input type="text" name="client_id" value="{{ registration.client_id }}" size="60"></label><br>
     <button type="submit">Continue</button>
   </form>
 </body>

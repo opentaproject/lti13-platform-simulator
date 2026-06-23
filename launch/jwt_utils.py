@@ -1,3 +1,4 @@
+import json
 import time
 
 import jwt
@@ -43,6 +44,7 @@ def build_claims(user, registration, tool_nonce):
 def sign_launch_jwt(user, registration, tool_nonce):
     platform_key = get_or_create_platform_key()
     claims = build_claims(user, registration, tool_nonce)
+    print(f"LTI JWT payload:\n{json.dumps(claims, indent=2)}")
     return jwt.encode(
         claims,
         platform_key.private_key_pem,

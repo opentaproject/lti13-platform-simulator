@@ -179,7 +179,7 @@ class AuthCallbackViewTests(TestCase):
         launch_state = self._create_launch_state()
 
         response = self.client.get(
-            "/auth/callback/",
+            "/api/lti/authorize_redirect",
             {
                 "login_hint": launch_state.state,
                 "client_id": self.registration.client_id,
@@ -195,7 +195,7 @@ class AuthCallbackViewTests(TestCase):
 
     def test_unknown_login_hint_returns_400(self):
         response = self.client.get(
-            "/auth/callback/",
+            "/api/lti/authorize_redirect",
             {"login_hint": "does-not-exist", "client_id": "x", "nonce": "n", "state": "s"},
         )
         self.assertEqual(response.status_code, 400)
@@ -203,7 +203,7 @@ class AuthCallbackViewTests(TestCase):
     def test_client_id_mismatch_returns_400(self):
         launch_state = self._create_launch_state()
         response = self.client.get(
-            "/auth/callback/",
+            "/api/lti/authorize_redirect",
             {
                 "login_hint": launch_state.state,
                 "client_id": "wrong-client-id",
@@ -219,7 +219,7 @@ class AuthCallbackViewTests(TestCase):
         launch_state.save(update_fields=["created_at"])
 
         response = self.client.get(
-            "/auth/callback/",
+            "/api/lti/authorize_redirect",
             {
                 "login_hint": launch_state.state,
                 "client_id": self.registration.client_id,
