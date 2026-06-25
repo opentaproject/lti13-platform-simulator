@@ -1,0 +1,65 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: ${SITE_NAME}
+  labels:
+    app: ${SITE_NAME}
+spec:
+  volumes:
+    - name: subdomain-vol
+      persistentVolumeClaim:
+        claimName: subdomain-pvc
+  restartPolicy: Always
+  containers:
+    - name: web
+      env:
+        - name: DATABASE_NAME
+          value: "${DATABASE_NAME}"
+        - name: DJANGO_SECRET_KEY
+          value: "${DJANGO_SECRET_KEY}"
+        - name: EMAIL_HOST_PASSWORD
+          value: "${EMAIL_HOST_PASSWORD}"
+        - name: STATIC_URL
+          value: "${STATIC_URL}"
+        - name: EMAIL_HOST_USER
+          value: "${EMAIL_HOST_USER}"
+        - name: PUBLIC_BASE_URL
+          value: "${PUBLIC_BASE_URL}"
+        - name: TWILIO_FROM
+          value: "${TWILIO_FROM}"
+        - name: TWILIO_SID
+          value: "${TWILIO_SID}"
+        - name: TWILIO_TO
+          value: "${TWILIO_TO}"
+        - name: TWILIO_TOKEN
+          value: "${TWILIO_TOKEN}"
+        - name: TZ
+          value: "Europe/Stockholm"
+        - name: DEBUG
+          value: "False"
+        - name: GITHUB_TOKEN
+          value: "${GITHUB_TOKEN}"
+      image: opentaproject/tennis-full:cb9b8e8
+      command: ["/bin/bash","-c"] 
+      args:
+        - ln -s /data/.ssh /root/.ssh;
+          python manage.py migrate ;
+          apt-get update;
+          apt-get install --yes rsync cron;
+          ( yes yes | python manage.py collectstatic ) ;
+          /usr/local/bin/supervisord -c /srv/tennis/django/backend/supervisord.conf ;
+      resources: {}
+      volumeMounts:
+        - mountPath: /data
+          name: subdomain-vol
+          subPath: data/${SITE_NAME}
+
+    - name: nginx
+      image: opentaproject/tennis-nginx:latest
+      ports: 
+        - containerPort: 8080
+      volumeMounts:
+        - mountPath: /data
+          name: subdomain-vol
+          subPath: data/${SITE_NAME}
+      

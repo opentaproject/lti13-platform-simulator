@@ -1,0 +1,12 @@
+#!/bin/bash
+export EMAIL_HOST_PASSWORD=XXXXX
+export EMAIL_HOST_USER=XXXXX
+export TWILIO_FROM=YOUR_TWILIO_SENDER_ID # what sms says if from
+export TWILIO_SID=YOUR_TWILIO_ACCOUNT_SID
+export TWILIO_TO=YOUR_RECIPIENT_NUMBER  # who receives status sms
+export TWILIO_TOKEN=YOUR_TWILIO_AUTH_TOKEN
+export STATIC_URL=/deploystatic/ # or cdn
+export DATABASE_NAME=/data/db.sqlite3
+export SUPERUSER_PASSWORD=XXXXX
+export GITHUB_TOKEN=YOUR_GITHUB_TOKEN
+export PUBLIC_BASE_URL=https://mytennisbana.net

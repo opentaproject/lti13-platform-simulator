@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${SITE_NAME}
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    app: ${SITE_NAME}
+  ports:
+    - port: 80
+      #targetPort: 8000 # HITS tennis
+      targetPort: 8080 # HITS nginx
+      #argetPort: 80 # HITS nginx
+      name: http
+#status:
+#  loadBalancer: {}

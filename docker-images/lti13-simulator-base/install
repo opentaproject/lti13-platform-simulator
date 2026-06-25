@@ -1,0 +1,7 @@
+export BASE_VERSION='multi'
+echo creating dockerfile lti13-simulator-base:${BASE_VERSION}
+cp ../../requirements.txt requirements-lti13-simulator.txt
+docker buildx rm lti13-simulatorbuilder
+docker buildx create --name lti13-simulatorbuilder --driver docker-container --use --bootstrap
+docker buildx build --platform linux/amd64,linux/arm64  -t opentaproject/lti13-simulator-base:${BASE_VERSION} --push .
+

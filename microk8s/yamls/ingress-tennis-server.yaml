@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tennis-server
+
+
+spec:
+  tls:
+    - hosts:
+      - ${SITE_NAME}.net #EDIT
+      secretName: ${SITE_NAME}-tls
+  ingressClassName: nginx
+
+  rules:
+    - host: "${SITE_NAME}.net"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+                service:
+                  name: ${SITE_NAME}
+                  port:
+                    name:  http

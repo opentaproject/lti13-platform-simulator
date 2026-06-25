@@ -1,0 +1,24 @@
+#!/bin/bash
+export BASE_VERSION=multi
+export FULL_VERSION=b3b04cc
+export FULL_VERSION=34008aa
+export FULL_VERSION=0d5ce92
+export FULL_VERSION=`git rev-parse --short HEAD`
+export DJANGO_SECRET_KEY='changeme'
+
+
+cp ../../requirements.txt .
+rm -rf srv
+mkdir -p srv/lti13-simulator
+git clone   git@github.com:opentaproject/lti13-simulator.git -b development srv
+echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+echo creating dockerfile lti13-simulator-full:${FULL_VERSION}
+echo "The next command may take a few minutes"
+
+docker buildx rm lti13-simulator-builder || true
+docker buildx create --name lti13-simulator-builder --driver docker-container --use --bootstrap
+docker buildx build --builder lti13-simulator-builder \
+	--build-arg DJANGO_SECRET_KEY="$DJANGO_SECRET_KEY" \
+	--platform linux/amd64,linux/arm64  -t opentaproject/lti13-simulator-full:${FULL_VERSION}  -t opentaproject/lti13-simulator-full:latest --push .
+
+echo BUILT ${FULLVERSION}

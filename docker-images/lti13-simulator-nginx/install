@@ -1,0 +1,96 @@
+#!/bin/bash
+export VERSION="${VERSION:-multi}"
+
+echo creating docker lti13-simulator-nginx:${VERSION}
+
+# Optional: upgrade Buildx plugin (set UPGRADE_BUILDX=1)
+if [[ "${UPGRADE_BUILDX}" == "1" ]]; then
+  echo "Checking Docker Buildx version and upgrading if requested..."
+  CURRENT_BUILDX=$(docker buildx version 2>/dev/null | awk '{print $2}' | sed 's/^v//')
+  TARGET_BUILDX=${BUILDX_VERSION:-"0.11.2"}
+
+  version_lt() {
+    # compare two dotted version strings: return 0 if $1 < $2
+    awk -v v1="$1" -v v2="$2" 'BEGIN {
+      n1=split(v1,a,"."); n2=split(v2,b,".");
+      for(i=1;i<= (n1>n2?n1:n2); i++) {
+        x = (i<=n1)?a[i]:0; y = (i<=n2)?b[i]:0;
+        if (x+0 < y+0) { exit 0 }
+        if (x+0 > y+0) { exit 1 }
+      }
+      exit 1
+    }'
+  }
+
+  NEED_UPGRADE=0
+  if [[ -z "${CURRENT_BUILDX}" ]]; then
+    NEED_UPGRADE=1
+  elif version_lt "${CURRENT_BUILDX}" "${TARGET_BUILDX}"; then
+    NEED_UPGRADE=1
+  fi
+  if [[ "${NEED_UPGRADE}" == "1" ]]; then
+    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    ARCH=$(uname -m)
+    case "$ARCH" in
+      x86_64) ARCH=amd64;;
+      aarch64|arm64) ARCH=arm64;;
+    esac
+    URL="https://github.com/docker/buildx/releases/download/v${TARGET_BUILDX}/buildx-v${TARGET_BUILDX}.${OS}-${ARCH}"
+    DEST_DIR="${HOME}/.docker/cli-plugins"
+    DEST_PATH="${DEST_DIR}/docker-buildx"
+    echo "Upgrading Buildx to v${TARGET_BUILDX} (${OS}-${ARCH})..."
+    mkdir -p "${DEST_DIR}" || true
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL -o "${DEST_PATH}" "${URL}" || {
+        echo "Failed to download buildx from ${URL}" >&2; exit 1; }
+    elif command -v wget >/dev/null 2>&1; then
+      wget -qO "${DEST_PATH}" "${URL}" || {
+        echo "Failed to download buildx from ${URL}" >&2; exit 1; }
+    else
+      echo "Neither curl nor wget found; cannot upgrade Buildx automatically." >&2
+      exit 1
+    fi
+    chmod +x "${DEST_PATH}"
+    echo -n "Buildx version now: "; docker buildx version || true
+  else
+    echo "Buildx is up-to-date (v${CURRENT_BUILDX})"
+  fi
+fi
+echo OK1
+# Ensure the 'lti13-simulator-builder' exists and is ready
+if ! docker buildx inspect lti13-simulator-builder >/dev/null 2>&1; then
+  echo "Creating buildx builder 'lti13-simulator-builder'..."
+  docker buildx create --name lti13-simulator-builder --driver docker-container --use >/dev/null 2>&1 || exit 1
+  docker buildx inspect lti13-simulator-builder --bootstrap >/dev/null 2>&1 || true
+else :
+  echo FAILED : is docker running?
+fi
+echo OK2
+
+# Use a healthy builder
+docker buildx use lti13-simulator-builder
+
+if [[ "${PUSH}" == "1" ]]; then
+  # Optional login only when pushing
+  if [[ -n "${DOCKERHUB_USERNAME}" && -n "${DOCKERHUB_TOKEN}" ]]; then
+    echo "${DOCKERHUB_TOKEN}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
+  fi
+  # Default: publish Docker media types (schema2) to keep `docker manifest inspect` compatible.
+  # Opt-in to OCI media types by setting OCI_MEDIA_TYPES=1.
+  if [[ "${OCI_MEDIA_TYPES}" == "1" ]]; then
+    echo "Building and pushing multi-arch (amd64, arm64) with OCI media types ..."
+    docker buildx build --platform linux/amd64,linux/arm64 \
+      -t opentaproject/lti13-simulator-nginx:${VERSION} --push .
+  else
+    echo "Building and pushing multi-arch (amd64, arm64) with Docker media types ..."
+    docker buildx build --platform linux/amd64,linux/arm64 \
+      -t opentaproject/lti13-simulator-nginx:${VERSION} \
+      --provenance=false --sbom=false \
+      --output=type=registry,oci-mediatypes=false .
+  fi
+else
+  # Local-only: build for current daemon arch and load into Docker
+  PLATFORM="linux/$(docker version -f '{{.Server.Arch}}')"
+  echo "Building locally for ${PLATFORM} and loading into Docker ..."
+  docker buildx build --platform ${PLATFORM} -t opentaproject/lti13-simulator-nginx:${VERSION} --load .
+fi
