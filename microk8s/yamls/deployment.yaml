@@ -39,15 +39,16 @@ spec:
           value: "False"
         - name: GITHUB_TOKEN
           value: "${GITHUB_TOKEN}"
-      image: opentaproject/tennis-full:cb9b8e8
+      image: opentaproject/lti13-simulator-full:latest
       command: ["/bin/bash","-c"] 
       args:
         - ln -s /data/.ssh /root/.ssh;
           python manage.py migrate ;
           apt-get update;
-          apt-get install --yes rsync cron;
-          ( yes yes | python manage.py collectstatic ) ;
-          /usr/local/bin/supervisord -c /srv/tennis/django/backend/supervisord.conf ;
+          #apt-get install --yes rsync cron;
+          sleep 3600;
+          #( yes yes | python manage.py collectstatic ) ;
+          #/usr/local/bin/supervisord -c /srv/lti13-simulator/django/backend/supervisord.conf ;
       resources: {}
       volumeMounts:
         - mountPath: /data
@@ -56,6 +57,7 @@ spec:
 
     - name: nginx
       image: opentaproject/tennis-nginx:latest
+      imagePullPolicy: Always
       ports: 
         - containerPort: 8080
       volumeMounts:
