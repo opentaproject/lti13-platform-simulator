@@ -66,6 +66,7 @@ else :
   echo FAILED : is docker running?
 fi
 echo OK2
+PUSH=1
 
 # Use a healthy builder
 docker buildx use lti13-simulator-builder
