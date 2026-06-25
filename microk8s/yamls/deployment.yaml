@@ -48,8 +48,8 @@ spec:
           python manage.py migrate ;
           mkdir -p static;
           ( yes yes | python manage.py collectstatic ) ;
-          python manage.py runserver ;
-          #/usr/local/bin/supervisord -c /srv/lti13-simulator/supervisord.conf ;
+          /usr/local/bin/supervisord -c /srv/lti13-simulator/supervisord.conf ;
+          #python manage.py runserver ;
       resources: {}
       volumeMounts:
         - mountPath: /data
