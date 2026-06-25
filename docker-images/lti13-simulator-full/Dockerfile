@@ -8,5 +8,5 @@ RUN pip install -r requirements.txt
 RUN apt install -y at 
 RUN apt update 
 WORKDIR /srv/lti13-simulator
-RUN python manage.py collectstatic --noinput --clear
+#RUN python manage.py collectstatic --noinput --clear
 EXPOSE 8000

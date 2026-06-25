@@ -9,8 +9,9 @@ export DJANGO_SECRET_KEY='changeme'
 
 cp ../../requirements.txt .
 rm -rf srv
-mkdir -p srv/lti13-simulator
-git clone   git@github.com:opentaproject/lti13-simulator.git -b development srv
+mkdir -p srv/lti13-simulator 
+git clone https://opentaproject:${ghp}@github.com/opentaproject/lti13-platform-simulator.git -b development srv/lti13-simulator
+#git clone   git@github.com:opentaproject/lti13-platform-simulator.git -b development srv
 echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
 echo creating dockerfile lti13-simulator-full:${FULL_VERSION}
 echo "The next command may take a few minutes"
