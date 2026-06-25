@@ -41,6 +41,8 @@ spec:
       command: ["/bin/bash","-c"] 
       args:
         - ln -s /data/.ssh /root/.ssh;
+          rm -f db.sqlite3;
+          ln -s /data/db.sqlite3 db.sqlite3;
           git remote set-url origin git@github.com:opentaproject/lti13-platform-simulator.git;
           git checkout development && git fetch origin && git reset --hard origin/development && git clean -fd;
           python manage.py migrate ;
