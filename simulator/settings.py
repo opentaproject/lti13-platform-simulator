@@ -24,10 +24,11 @@ SECRET_KEY = "django-insecure-takgt+21su^az+yx)kyv9k7h1eva*v2*q*$)96-rieq^3vu2+2
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+STATICFILES_DIRS = [f"{BASE_DIR}/static"]
 
 ALLOWED_HOSTS = ["osx.openta.dev", "localhost","lti13-simulator.openta.dev"]
 
-CSRF_TRUSTED_ORIGINS = ["https://osx.openta.dev"]
+CSRF_TRUSTED_ORIGINS = ["https://osx.openta.dev","https://lti13-simulator.openta.dev"]
 
 
 # Application definition
@@ -119,13 +120,14 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/deploystatic/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "tool_list"
 LOGOUT_REDIRECT_URL = "login"
+STATIC_ROOT = BASE_DIR / "deploystatic"
+
