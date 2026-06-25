@@ -37,18 +37,15 @@ spec:
           value: "Europe/Stockholm"
         - name: DEBUG
           value: "False"
-        - name: GITHUB_TOKEN
-          value: "${GITHUB_TOKEN}"
       image: opentaproject/lti13-simulator-full:latest
       command: ["/bin/bash","-c"] 
       args:
         - ln -s /data/.ssh /root/.ssh;
+          git remote set-url origin git@github.com:opentaproject/lti13-platform-simulator.git;
+          git checkout development && git fetch origin && git reset --hard origin/development && git clean -fd;
           python manage.py migrate ;
-          apt-get update;
-          #apt-get install --yes rsync cron;
-          sleep 3600;
-          #( yes yes | python manage.py collectstatic ) ;
-          #/usr/local/bin/supervisord -c /srv/lti13-simulator/django/backend/supervisord.conf ;
+          ( yes yes | python manage.py collectstatic ) ;
+          /usr/local/bin/supervisord -c /srv/lti13-simulator/supervisord.conf ;
       resources: {}
       volumeMounts:
         - mountPath: /data
