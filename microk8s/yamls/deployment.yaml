@@ -37,13 +37,14 @@ spec:
           value: "Europe/Stockholm"
         - name: DEBUG
           value: "False"
-      image: opentaproject/lti13-simulator-full:latest
+      image: opentaproject/lti13-simulator-full:9b984ea
       command: ["/bin/bash","-c"] 
       args:
         - ln -s /data/.ssh /root/.ssh;
           git remote set-url origin git@github.com:opentaproject/lti13-platform-simulator.git;
           git checkout development && git fetch origin && git reset --hard origin/development && git clean -fd;
           python manage.py migrate ;
+          mkdir -p static;
           ( yes yes | python manage.py collectstatic ) ;
           /usr/local/bin/supervisord -c /srv/lti13-simulator/supervisord.conf ;
       resources: {}
