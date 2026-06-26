@@ -93,6 +93,17 @@ class LaunchInitViewTests(TestCase):
         self.assertContains(response, launch_state.state)
         self.assertContains(response, self.registration.client_id)
 
+    def test_renders_context_fields_from_registration(self):
+        self.client.force_login(self.user)
+        response = self.client.get(f"/launch/{self.registration.id}/init/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="context_id"')
+        self.assertContains(response, self.registration.context_id)
+        self.assertContains(response, 'name="context_label"')
+        self.assertContains(response, self.registration.context_label)
+        self.assertContains(response, 'name="context_title"')
+        self.assertContains(response, self.registration.context_title)
+
 
 class JwtClaimTests(TestCase):
     def setUp(self):
