@@ -4,9 +4,12 @@
 <body>
   <h1>Available LTI Tools</h1>
   <p>
-    Logged in as {{ user.username }} ({{ user.profile.role }}) —
-    <a href="{% url 'logout' %}">Log out</a>
+    Logged in as {{ user.username }} ({{ user.profile.role }})
   </p>
+  <form method="post" action="{% url 'logout' %}">
+    {% csrf_token %}
+    <button type="submit">Log out</button>
+  </form>
   <ul>
     {% for registration in registrations %}
       <li><a href="{% url 'launch_init' registration.id %}">{{ registration.name }}</a></li>

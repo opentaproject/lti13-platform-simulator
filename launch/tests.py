@@ -85,6 +85,12 @@ class ToolListViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.registration.name)
 
+    def test_logout_works_via_post(self):
+        self.client.force_login(self.user)
+        response = self.client.post("/logout/")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/login/")
+
 
 class LaunchInitViewTests(TestCase):
     def setUp(self):
