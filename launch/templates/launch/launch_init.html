@@ -3,22 +3,16 @@
 <head><title>Launching {{ registration.name }}</title></head>
 <body>
   <p>Launching {{ registration.name }} as <strong>{{ user.username }}</strong>.</p>
-  <p>
-    These values define the simulated course context that will be sent during OIDC init and the
-    resulting LTI launch. Edit them if you want this registration to launch a different course,
-    otherwise leave the remembered values as-is.
-  </p>
-  <p>
-    <strong>context_id</strong> should be a unique string identifying this
-    <strong>target_link_uri</strong>. Reuse the same <strong>context_id</strong> when you want later
-    launches to resolve back to the same remembered target and course context.
-  </p>
   <form method="post">
     {% csrf_token %}
     <label>target_link_uri <input type="text" name="target_link_uri" value="{{ target_link_uri }}" size="60"></label><br>
+    <small>The destination URL the tool should treat as this launch target. Leave the remembered value unless you want to launch a different course/page.</small><br><br>
     <label>context_id <input type="text" name="context_id" value="{{ context_id }}" size="60"></label><br>
+    <small>A unique string identifying this target_link_uri. Reuse the same context_id when later launches should resolve back to the same remembered target and course context.</small><br><br>
     <label>context_label <input type="text" name="context_label" value="{{ context_label }}" size="60"></label><br>
+    <small>A short course code or label shown in the simulated LTI context claim, for example <code>FFM516</code>.</small><br><br>
     <label>context_title <input type="text" name="context_title" value="{{ context_title }}" size="60"></label><br>
+    <small>The full course title sent in the simulated LTI context claim.</small><br><br>
     <button type="submit">Continue to OIDC Init</button>
   </form>
 </body>
