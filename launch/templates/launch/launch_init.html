@@ -2,7 +2,17 @@
 <html>
 <head><title>Launching {{ registration.name }}</title></head>
 <body>
-  <p>Launching {{ registration.name }}...</p>
+  <p>Launching {{ registration.name }} as <strong>{{ user.username }}</strong>.</p>
+  <p>
+    These values define the simulated course context that will be sent during OIDC init and the
+    resulting LTI launch. Edit them if you want this registration to launch a different course,
+    otherwise leave the remembered values as-is.
+  </p>
+  <p>
+    <strong>context_id</strong> should be a unique string identifying this
+    <strong>target_link_uri</strong>. Reuse the same <strong>context_id</strong> when you want later
+    launches to resolve back to the same remembered target and course context.
+  </p>
   <form method="post">
     {% csrf_token %}
     <label>target_link_uri <input type="text" name="target_link_uri" value="{{ target_link_uri }}" size="60"></label><br>
