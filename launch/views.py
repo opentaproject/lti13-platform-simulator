@@ -3,7 +3,7 @@ from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseBadRequest
 
 from platform_config.models import LTIToolRegistration
-from .models import LTILaunchState
+from .models import Launch, LTILaunchState
 from .jwt_utils import sign_launch_jwt
 import logging
 logger = logging.getLogger(__name__)
@@ -19,14 +19,24 @@ def tool_list(request):
 @login_required
 def launch_init(request, registration_id):
     registration = get_object_or_404(LTIToolRegistration, id=registration_id)
+    latest_launch = Launch.objects.filter(registration=registration).order_by("-updated_at", "-pk").first()
     if request.method == "POST":
         target_link_uri = request.POST.get("target_link_uri", "").strip() or registration.target_link_uri
         context_id = request.POST.get("context_id", "").strip()
         context_label = request.POST.get("context_label", "").strip()
         context_title = request.POST.get("context_title", "").strip()
+        launch_lookup = {"target_link_uri": target_link_uri or None}
+        launch_defaults = {
+            "registration": registration,
+            "context_id": context_id,
+            "context_label": context_label,
+            "context_title": context_title,
+        }
+        launch_obj, _ = Launch.objects.update_or_create(defaults=launch_defaults, **launch_lookup)
         launch_state = LTILaunchState.objects.create(
             user=request.user,
             registration=registration,
+            launch=launch_obj,
             target_link_uri=target_link_uri,
             context_id=context_id,
             context_label=context_label,
@@ -50,10 +60,10 @@ def launch_init(request, registration_id):
 
     context = {
         "registration": registration,
-        "target_link_uri": registration.target_link_uri,
-        "context_id": request.GET.get("context_id", ""),
-        "context_label": request.GET.get("context_label", ""),
-        "context_title": request.GET.get("context_title", ""),
+        "target_link_uri": request.GET.get("target_link_uri", "") or (latest_launch.target_link_uri if latest_launch and latest_launch.target_link_uri else registration.target_link_uri),
+        "context_id": request.GET.get("context_id", "") or (latest_launch.context_id if latest_launch else ""),
+        "context_label": request.GET.get("context_label", "") or (latest_launch.context_label if latest_launch else ""),
+        "context_title": request.GET.get("context_title", "") or (latest_launch.context_title if latest_launch else ""),
     }
     return render(request, "launch/launch_init.html", context)
 
@@ -80,16 +90,20 @@ def auth_callback(request):
             "client_id does not match the launch state's registration."
         )
 
+    launch_obj = launch_state.launch
+    launch_target_link_uri = launch_obj.target_link_uri if launch_obj and launch_obj.target_link_uri else launch_state.target_link_uri
+    launch_context = {
+        "id": launch_obj.context_id if launch_obj else launch_state.context_id,
+        "label": launch_obj.context_label if launch_obj else launch_state.context_label,
+        "title": launch_obj.context_title if launch_obj else launch_state.context_title,
+    }
+
     id_token = sign_launch_jwt(
         launch_state.user,
         launch_state.registration,
         tool_nonce,
-        target_link_uri=launch_state.target_link_uri,
-        context={
-            "id": launch_state.context_id,
-            "label": launch_state.context_label,
-            "title": launch_state.context_title,
-        },
+        target_link_uri=launch_target_link_uri,
+        context=launch_context,
     )
     target_url = redirect_uri or launch_state.registration.launch_url
     launch_state.delete()

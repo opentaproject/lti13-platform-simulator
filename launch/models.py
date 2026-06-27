@@ -28,11 +28,25 @@ class UserProfile(models.Model):
         return f"{self.user.username} ({self.role})"
 
 
+class Launch(models.Model):
+    registration = models.ForeignKey(LTIToolRegistration, on_delete=models.CASCADE)
+    target_link_uri = models.URLField(unique=True, blank=True, null=True)
+    context_id = models.CharField(max_length=255, blank=True, default="")
+    context_label = models.CharField(max_length=255, blank=True, default="")
+    context_title = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.target_link_uri or f"Launch {self.pk}"
+
+
 class LTILaunchState(models.Model):
     state = models.CharField(max_length=255, unique=True, default=generate_token)
     nonce = models.CharField(max_length=255, default=generate_token)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     registration = models.ForeignKey(LTIToolRegistration, on_delete=models.CASCADE)
+    launch = models.ForeignKey(Launch, on_delete=models.SET_NULL, null=True, blank=True)
     target_link_uri = models.URLField(blank=True, default="")
     context_id = models.CharField(max_length=255, blank=True, default="")
     context_label = models.CharField(max_length=255, blank=True, default="")

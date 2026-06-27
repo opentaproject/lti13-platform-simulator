@@ -9,7 +9,7 @@ from django.utils import timezone
 from platform_config.models import LTIToolRegistration
 from platform_config.keys import get_or_create_platform_key
 
-from .models import UserProfile, LTILaunchState
+from .models import Launch, UserProfile, LTILaunchState
 from .jwt_utils import build_claims, sign_launch_jwt
 
 
@@ -57,6 +57,17 @@ class LTILaunchStateTests(TestCase):
         state.created_at = timezone.now() - timedelta(minutes=10)
         state.save(update_fields=["created_at"])
         self.assertTrue(state.is_expired())
+
+
+class LaunchModelTests(TestCase):
+    def setUp(self):
+        self.registration = make_registration()
+
+    def test_target_link_uri_allows_blank_and_null(self):
+        launch_one = Launch.objects.create(registration=self.registration, target_link_uri=None)
+        launch_two = Launch.objects.create(registration=self.registration, target_link_uri=None)
+        self.assertIsNone(launch_one.target_link_uri)
+        self.assertIsNone(launch_two.target_link_uri)
 
 
 class ToolListViewTests(TestCase):
@@ -107,7 +118,41 @@ class LaunchInitViewTests(TestCase):
         self.assertContains(response, 'name="context_title"')
         self.assertContains(response, "Exam Grading Course")
 
-    def test_post_creates_launch_state_and_renders_auto_submit_form(self):
+    def test_get_prefills_from_most_recent_launch_for_registration(self):
+        other_registration = make_registration(name="Other", client_id="client-456")
+        Launch.objects.create(
+            registration=other_registration,
+            target_link_uri="https://other.openta.dev",
+            context_id="other-course",
+            context_label="OTHER",
+            context_title="Other Course",
+        )
+        latest = Launch.objects.create(
+            registration=self.registration,
+            target_link_uri="https://test7.openta.dev",
+            context_id="course-1",
+            context_label="FFM516",
+            context_title="Exam Grading Course",
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(f"/launch/{self.registration.id}/init/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, latest.target_link_uri)
+        self.assertContains(response, latest.context_id)
+        self.assertContains(response, latest.context_label)
+        self.assertContains(response, latest.context_title)
+        self.assertNotContains(response, "https://other.openta.dev")
+
+    def test_post_upserts_launch_by_target_link_uri_and_creates_launch_state(self):
+        existing = Launch.objects.create(
+            registration=self.registration,
+            target_link_uri="https://test7.openta.dev",
+            context_id="old-course",
+            context_label="OLD",
+            context_title="Old Title",
+        )
         self.client.force_login(self.user)
         response = self.client.post(
             f"/launch/{self.registration.id}/init/",
@@ -119,7 +164,12 @@ class LaunchInitViewTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
+        existing.refresh_from_db()
+        self.assertEqual(existing.context_id, "course-1")
+        self.assertEqual(existing.context_label, "FFM516")
+        self.assertEqual(existing.context_title, "Exam Grading Course")
         launch_state = LTILaunchState.objects.get(user=self.user, registration=self.registration)
+        self.assertEqual(launch_state.launch_id, existing.pk)
         self.assertEqual(launch_state.target_link_uri, "https://test7.openta.dev")
         self.assertEqual(launch_state.context_id, "course-1")
         self.assertEqual(launch_state.context_label, "FFM516")
@@ -249,6 +299,7 @@ class AuthCallbackViewTests(TestCase):
         self.assertContains(response, self.registration.launch_url)
         self.assertContains(response, "tool-state-xyz")
         self.assertFalse(LTILaunchState.objects.filter(id=launch_state.id).exists())
+        self.assertTrue(Launch.objects.filter(target_link_uri="https://test7.openta.dev").exists())
 
     def test_unknown_login_hint_returns_400(self):
         response = self.client.get(
