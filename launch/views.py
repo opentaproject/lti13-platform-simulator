@@ -9,6 +9,27 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _launch_form_context(
+    request,
+    registration,
+    *,
+    latest_launch=None,
+    target_link_uri="",
+    context_id="",
+    context_label="",
+    context_title="",
+    error_message="",
+):
+    return {
+        "registration": registration,
+        "target_link_uri": target_link_uri or request.GET.get("target_link_uri", "") or (latest_launch.target_link_uri if latest_launch and latest_launch.target_link_uri else registration.target_link_uri),
+        "context_id": context_id or request.GET.get("context_id", "") or (latest_launch.context_id if latest_launch else ""),
+        "context_label": context_label or request.GET.get("context_label", "") or (latest_launch.context_label if latest_launch else ""),
+        "context_title": context_title or request.GET.get("context_title", "") or (latest_launch.context_title if latest_launch else ""),
+        "error_message": error_message,
+    }
+
+
 
 @login_required
 def tool_list(request):
@@ -25,6 +46,42 @@ def launch_init(request, registration_id):
         context_id = request.POST.get("context_id", "").strip()
         context_label = request.POST.get("context_label", "").strip()
         context_title = request.POST.get("context_title", "").strip()
+        existing_target = Launch.objects.filter(target_link_uri=target_link_uri).first() if target_link_uri else None
+        if existing_target and existing_target.context_id and context_id and existing_target.context_id != context_id:
+            context = _launch_form_context(
+                request,
+                registration,
+                latest_launch=latest_launch,
+                target_link_uri=target_link_uri,
+                context_id=context_id,
+                context_label=context_label,
+                context_title=context_title,
+                error_message=(
+                    f"Collision: target_link_uri {target_link_uri} is already bound to "
+                    f"context_id {existing_target.context_id}."
+                ),
+            )
+            return render(request, "launch/launch_init.html", context, status=400)
+        existing_context = (
+            Launch.objects.filter(context_id=context_id).exclude(target_link_uri=target_link_uri).first()
+            if context_id
+            else None
+        )
+        if existing_context and existing_context.target_link_uri:
+            context = _launch_form_context(
+                request,
+                registration,
+                latest_launch=latest_launch,
+                target_link_uri=target_link_uri,
+                context_id=context_id,
+                context_label=context_label,
+                context_title=context_title,
+                error_message=(
+                    f"Collision: context_id {context_id} is already bound to "
+                    f"target_link_uri {existing_context.target_link_uri}."
+                ),
+            )
+            return render(request, "launch/launch_init.html", context, status=400)
         launch_lookup = {"target_link_uri": target_link_uri or None}
         launch_defaults = {
             "registration": registration,
@@ -58,13 +115,7 @@ def launch_init(request, registration_id):
         }
         return render(request, "launch/launch_init_submit.html", context)
 
-    context = {
-        "registration": registration,
-        "target_link_uri": request.GET.get("target_link_uri", "") or (latest_launch.target_link_uri if latest_launch and latest_launch.target_link_uri else registration.target_link_uri),
-        "context_id": request.GET.get("context_id", "") or (latest_launch.context_id if latest_launch else ""),
-        "context_label": request.GET.get("context_label", "") or (latest_launch.context_label if latest_launch else ""),
-        "context_title": request.GET.get("context_title", "") or (latest_launch.context_title if latest_launch else ""),
-    }
+    context = _launch_form_context(request, registration, latest_launch=latest_launch)
     return render(request, "launch/launch_init.html", context)
 
 

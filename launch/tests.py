@@ -102,6 +102,7 @@ class LaunchInitViewTests(TestCase):
         response = self.client.get(f"/launch/{self.registration.id}/init/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.user.username)
+        self.assertContains(response, self.user.profile.role)
         self.assertContains(response, "The destination URL the tool should treat as this launch target")
         self.assertContains(response, "A unique string identifying this target_link_uri")
         self.assertContains(response, 'name="context_id"')
@@ -158,7 +159,7 @@ class LaunchInitViewTests(TestCase):
         existing = Launch.objects.create(
             registration=self.registration,
             target_link_uri="https://test7.openta.dev",
-            context_id="old-course",
+            context_id="course-1",
             context_label="OLD",
             context_title="Old Title",
         )
@@ -186,6 +187,58 @@ class LaunchInitViewTests(TestCase):
         self.assertContains(response, self.registration.oidc_init_url)
         self.assertContains(response, launch_state.state)
         self.assertContains(response, self.registration.client_id)
+
+    def test_post_rejects_target_link_uri_collision_with_different_context_id(self):
+        Launch.objects.create(
+            registration=self.registration,
+            target_link_uri="https://test7.openta.dev",
+            context_id="course-1",
+            context_label="FFM516",
+            context_title="Exam Grading Course",
+        )
+        self.client.force_login(self.user)
+        response = self.client.post(
+            f"/launch/{self.registration.id}/init/",
+            {
+                "target_link_uri": "https://test7.openta.dev",
+                "context_id": "course-2",
+                "context_label": "NEW",
+                "context_title": "New Course",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(
+            response,
+            "Collision: target_link_uri https://test7.openta.dev is already bound to context_id course-1.",
+            status_code=400,
+        )
+        self.assertFalse(LTILaunchState.objects.filter(user=self.user, registration=self.registration).exists())
+
+    def test_post_rejects_context_id_collision_with_different_target_link_uri(self):
+        Launch.objects.create(
+            registration=self.registration,
+            target_link_uri="https://test7.openta.dev",
+            context_id="course-1",
+            context_label="FFM516",
+            context_title="Exam Grading Course",
+        )
+        self.client.force_login(self.user)
+        response = self.client.post(
+            f"/launch/{self.registration.id}/init/",
+            {
+                "target_link_uri": "https://other.openta.dev",
+                "context_id": "course-1",
+                "context_label": "FFM516",
+                "context_title": "Exam Grading Course",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(
+            response,
+            "Collision: context_id course-1 is already bound to target_link_uri https://test7.openta.dev.",
+            status_code=400,
+        )
+        self.assertFalse(LTILaunchState.objects.filter(user=self.user, registration=self.registration).exists())
 
 
 class JwtClaimTests(TestCase):
