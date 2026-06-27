@@ -23,7 +23,6 @@ The tool's env config (for reference):
 LTI13_AUTH_LOGIN_URL=https://canvas.chalmers.se/api/lti/authorize_redirect
 LTI13_CLIENT_ID=125230000000000352
 LTI13_ISSUER=https://canvas.chalmers.se
-LTI13_DEFAULT_TARGET_LINK_URI=https://ffm516-2025.openta-demo.org/launch
 LTI13_JWKS_PUBLIC_URL=https://lti13.openta-demo.org/.well-known/jwks.json
 LTI13_PRIVATE_KEY_FILE=/subdomain-data/auth/lti13-tool-private.pem
 LTI13_DEPLOYMENT_ID=<pending from admin>
