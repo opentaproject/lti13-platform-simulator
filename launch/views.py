@@ -34,13 +34,22 @@ def _launch_form_context(
 @login_required
 def tool_list(request):
     registrations = LTIToolRegistration.objects.all()
-    return render(request, "launch/tool_list.html", {"registrations": registrations})
+    launches = Launch.objects.select_related("registration").order_by("-updated_at", "-pk")
+    return render(
+        request,
+        "launch/tool_list.html",
+        {"registrations": registrations, "launches": launches},
+    )
 
 
 @login_required
 def launch_init(request, registration_id):
     registration = get_object_or_404(LTIToolRegistration, id=registration_id)
-    latest_launch = Launch.objects.filter(registration=registration).order_by("-updated_at", "-pk").first()
+    selected_launch = None
+    launch_pk = request.GET.get("launch")
+    if launch_pk:
+        selected_launch = get_object_or_404(Launch, pk=launch_pk, registration=registration)
+    latest_launch = selected_launch or Launch.objects.filter(registration=registration).order_by("-updated_at", "-pk").first()
     if request.method == "POST":
         target_link_uri = request.POST.get("target_link_uri", "").strip() or registration.target_link_uri
         context_id = request.POST.get("context_id", "").strip()

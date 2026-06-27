@@ -15,5 +15,28 @@
       <li><a href="{% url 'launch_init' registration.id %}">{{ registration.name }}</a></li>
     {% endfor %}
   </ul>
+  <h2>Saved Launches</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>target_link_uri</th>
+        <th>registration</th>
+        <th>context_id</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for launch in launches %}
+        <tr>
+          <td><a href="{% url 'launch_init' launch.registration.id %}?launch={{ launch.id }}">{{ launch.target_link_uri }}</a></td>
+          <td>{{ launch.registration.name }}</td>
+          <td>{{ launch.context_id }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="3">No saved launches.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </body>
 </html>

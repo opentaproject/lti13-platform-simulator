@@ -85,6 +85,22 @@ class ToolListViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.registration.name)
 
+    def test_lists_saved_launches_with_links(self):
+        launch = Launch.objects.create(
+            registration=self.registration,
+            target_link_uri="https://test7.openta.dev",
+            context_id="course-1",
+            context_label="FFM516",
+            context_title="Exam Grading Course",
+        )
+        self.client.force_login(self.user)
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, launch.target_link_uri)
+        self.assertContains(response, self.registration.name)
+        self.assertContains(response, launch.context_id)
+        self.assertContains(response, f'/launch/{self.registration.id}/init/?launch={launch.id}')
+
     def test_logout_works_via_post(self):
         self.client.force_login(self.user)
         response = self.client.post("/logout/")
@@ -153,6 +169,32 @@ class LaunchInitViewTests(TestCase):
         self.assertContains(response, latest.context_id)
         self.assertContains(response, latest.context_label)
         self.assertContains(response, latest.context_title)
+        self.assertNotContains(response, "https://other.openta.dev")
+
+    def test_get_prefills_from_selected_launch(self):
+        selected = Launch.objects.create(
+            registration=self.registration,
+            target_link_uri="https://test7.openta.dev",
+            context_id="course-1",
+            context_label="FFM516",
+            context_title="Exam Grading Course",
+        )
+        Launch.objects.create(
+            registration=self.registration,
+            target_link_uri="https://other.openta.dev",
+            context_id="course-2",
+            context_label="OTHER",
+            context_title="Other Course",
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(f"/launch/{self.registration.id}/init/?launch={selected.id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, selected.target_link_uri)
+        self.assertContains(response, selected.context_id)
+        self.assertContains(response, selected.context_label)
+        self.assertContains(response, selected.context_title)
         self.assertNotContains(response, "https://other.openta.dev")
 
     def test_post_upserts_launch_by_target_link_uri_and_creates_launch_state(self):
