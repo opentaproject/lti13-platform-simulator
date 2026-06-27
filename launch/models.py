@@ -33,6 +33,10 @@ class LTILaunchState(models.Model):
     nonce = models.CharField(max_length=255, default=generate_token)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     registration = models.ForeignKey(LTIToolRegistration, on_delete=models.CASCADE)
+    target_link_uri = models.URLField(blank=True, default="")
+    context_id = models.CharField(max_length=255, blank=True, default="")
+    context_label = models.CharField(max_length=255, blank=True, default="")
+    context_title = models.CharField(max_length=255, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def is_expired(self):

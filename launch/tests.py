@@ -30,9 +30,6 @@ def make_registration(**overrides):
         target_link_uri="https://lti13.openta-demo.org/launch",
         deployment_id="deploy-1",
         issuer="https://simulator.example.org",
-        context_id="course-1",
-        context_label="FFM516",
-        context_title="Exam Grading Course",
         resource_link_id="resource-1",
     )
     defaults.update(overrides)
@@ -83,26 +80,53 @@ class LaunchInitViewTests(TestCase):
         self.user = User.objects.create_user(username="dave", password="pw12345")
         self.registration = make_registration()
 
-    def test_creates_launch_state_and_renders_auto_submit_form(self):
-        self.client.force_login(self.user)
-        response = self.client.get(f"/launch/{self.registration.id}/init/")
-        self.assertEqual(response.status_code, 200)
-
-        launch_state = LTILaunchState.objects.get(user=self.user, registration=self.registration)
-        self.assertContains(response, self.registration.oidc_init_url)
-        self.assertContains(response, launch_state.state)
-        self.assertContains(response, self.registration.client_id)
-
-    def test_renders_context_fields_from_registration(self):
+    def test_renders_context_form_on_get(self):
         self.client.force_login(self.user)
         response = self.client.get(f"/launch/{self.registration.id}/init/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'name="context_id"')
-        self.assertContains(response, self.registration.context_id)
         self.assertContains(response, 'name="context_label"')
-        self.assertContains(response, self.registration.context_label)
         self.assertContains(response, 'name="context_title"')
-        self.assertContains(response, self.registration.context_title)
+        self.assertFalse(LTILaunchState.objects.filter(user=self.user, registration=self.registration).exists())
+
+    def test_renders_context_fields_from_query_params(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            f"/launch/{self.registration.id}/init/",
+            {
+                "context_id": "course-1",
+                "context_label": "FFM516",
+                "context_title": "Exam Grading Course",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="context_id"')
+        self.assertContains(response, "course-1")
+        self.assertContains(response, 'name="context_label"')
+        self.assertContains(response, "FFM516")
+        self.assertContains(response, 'name="context_title"')
+        self.assertContains(response, "Exam Grading Course")
+
+    def test_post_creates_launch_state_and_renders_auto_submit_form(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            f"/launch/{self.registration.id}/init/",
+            {
+                "target_link_uri": "https://test7.openta.dev",
+                "context_id": "course-1",
+                "context_label": "FFM516",
+                "context_title": "Exam Grading Course",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        launch_state = LTILaunchState.objects.get(user=self.user, registration=self.registration)
+        self.assertEqual(launch_state.target_link_uri, "https://test7.openta.dev")
+        self.assertEqual(launch_state.context_id, "course-1")
+        self.assertEqual(launch_state.context_label, "FFM516")
+        self.assertEqual(launch_state.context_title, "Exam Grading Course")
+        self.assertContains(response, self.registration.oidc_init_url)
+        self.assertContains(response, launch_state.state)
+        self.assertContains(response, self.registration.client_id)
 
 
 class JwtClaimTests(TestCase):
@@ -118,11 +142,25 @@ class JwtClaimTests(TestCase):
         self.registration = make_registration()
 
     def test_build_claims_contains_required_fields(self):
-        claims = build_claims(self.user, self.registration, tool_nonce="tool-nonce-1")
+        claims = build_claims(
+            self.user,
+            self.registration,
+            tool_nonce="tool-nonce-1",
+            target_link_uri="https://test7.openta.dev",
+            context={
+                "id": "course-1",
+                "label": "FFM516",
+                "title": "Exam Grading Course",
+            },
+        )
         self.assertEqual(claims["iss"], self.registration.issuer)
         self.assertEqual(claims["sub"], str(self.user.id))
         self.assertEqual(claims["aud"], self.registration.client_id)
         self.assertEqual(claims["nonce"], "tool-nonce-1")
+        self.assertEqual(
+            claims["https://purl.imsglobal.org/spec/lti/claim/target_link_uri"],
+            "https://test7.openta.dev",
+        )
         self.assertEqual(
             claims["https://purl.imsglobal.org/spec/lti/claim/message_type"],
             "LtiResourceLinkRequest",
@@ -138,9 +176,9 @@ class JwtClaimTests(TestCase):
         self.assertEqual(
             claims["https://purl.imsglobal.org/spec/lti/claim/context"],
             {
-                "id": self.registration.context_id,
-                "label": self.registration.context_label,
-                "title": self.registration.context_title,
+                "id": "course-1",
+                "label": "FFM516",
+                "title": "Exam Grading Course",
             },
         )
         self.assertEqual(claims["email"], "instructor1@example.org")
@@ -183,7 +221,15 @@ class AuthCallbackViewTests(TestCase):
 
     def _create_launch_state(self):
         self.client.force_login(self.user)
-        self.client.get(f"/launch/{self.registration.id}/init/")
+        self.client.post(
+            f"/launch/{self.registration.id}/init/",
+            {
+                "target_link_uri": "https://test7.openta.dev",
+                "context_id": "course-1",
+                "context_label": "FFM516",
+                "context_title": "Exam Grading Course",
+            },
+        )
         return LTILaunchState.objects.get(user=self.user, registration=self.registration)
 
     def test_valid_callback_signs_and_posts_jwt_then_deletes_state(self):

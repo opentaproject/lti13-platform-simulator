@@ -3,16 +3,13 @@
 <head><title>Launching {{ registration.name }}</title></head>
 <body>
   <p>Launching {{ registration.name }}...</p>
-  <form method="post" action="{{ registration.oidc_init_url }}">
-    <label>iss <input type="text" name="iss" value="{{ registration.issuer }}" size="60"></label><br>
-    <label>login_hint <input type="text" name="login_hint" value="{{ login_hint }}" size="60"></label> ({{ login_hint_clear }})<br>
-    <label>lti_message_hint <input type="text" name="lti_message_hint" value="{{ login_hint }}" size="60"></label> ({{ login_hint_clear }})<br>
-    <label>target_link_uri <input type="text" name="target_link_uri" value="{{ registration.target_link_uri }}" size="60"></label><br>
-    <label>context_id <input type="text" name="context_id" value="{{ registration.context_id }}" size="60"></label><br>
-    <label>context_label <input type="text" name="context_label" value="{{ registration.context_label }}" size="60"></label><br>
-    <label>context_title <input type="text" name="context_title" value="{{ registration.context_title }}" size="60"></label><br>
-    <label>client_id <input type="text" name="client_id" value="{{ registration.client_id }}" size="60"></label><br>
-    <button type="submit">Continue</button>
+  <form method="post">
+    {% csrf_token %}
+    <label>target_link_uri <input type="text" name="target_link_uri" value="{{ target_link_uri }}" size="60"></label><br>
+    <label>context_id <input type="text" name="context_id" value="{{ context_id }}" size="60"></label><br>
+    <label>context_label <input type="text" name="context_label" value="{{ context_label }}" size="60"></label><br>
+    <label>context_title <input type="text" name="context_title" value="{{ context_title }}" size="60"></label><br>
+    <button type="submit">Continue to OIDC Init</button>
   </form>
 </body>
 </html>

@@ -20,9 +20,6 @@ class LTIToolRegistration(models.Model):
     target_link_uri = models.URLField()
     deployment_id = models.CharField(max_length=255)
     issuer = models.CharField(max_length=255)
-    context_id = models.CharField(max_length=255)
-    context_label = models.CharField(max_length=255)
-    context_title = models.CharField(max_length=255)
     resource_link_id = models.CharField(max_length=255)
 
     def __str__(self):
