@@ -37,6 +37,9 @@ spec:
           value: "Europe/Stockholm"
         - name: DEBUG
           value: "False"
+        - name: PLATFORM_BASE
+          value: ${PLATFORM_BASE}
+
       image: opentaproject/lti13-simulator-full:9b984ea
       command: ["/bin/bash","-c"] 
       args:
