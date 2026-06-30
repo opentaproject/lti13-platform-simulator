@@ -122,7 +122,9 @@ def launch_init(request, registration_id):
             "client_id": registration.client_id,
             "auto_submit": True,
         }
-        return render(request, "launch/launch_init_submit.html", context)
+        response = render(request, "launch/launch_init_submit.html", context)
+        response["Cache-Control"] = "no-store"
+        return response
 
     context = _launch_form_context(request, registration, latest_launch=latest_launch)
     return render(request, "launch/launch_init.html", context)
@@ -139,7 +141,7 @@ def auth_callback(request):
     try:
         launch_state = LTILaunchState.objects.get(state=login_hint)
     except LTILaunchState.DoesNotExist:
-        return HttpResponseBadRequest("Unknown or already-used login_hint.")
+        raise ValueError(f"Unknown or already-used login_hint: {login_hint!r}")
 
     if launch_state.is_expired():
         launch_state.delete()

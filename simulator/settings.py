@@ -130,4 +130,4 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "tool_list"
 LOGOUT_REDIRECT_URL = "login"
 STATIC_ROOT = BASE_DIR / "deploystatic"
-
+STATIC_URL='https://cdn.openta.dev/lti13-simulator/latest/'
