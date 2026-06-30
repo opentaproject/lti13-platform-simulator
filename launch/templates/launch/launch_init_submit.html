@@ -1,9 +1,55 @@
 <!DOCTYPE html>
 <html>
 <head><title>Submitting OIDC Init</title></head>
-<body onload="document.forms[0].submit()">
+<body>
   <p>Submitting OIDC init for {{ registration.name }}...</p>
+  <p><strong>*</strong> means "normally hidden, shown here for debugging".</p>
   <form method="post" action="{{ post_url }}">
+    <p>
+      <label>* iss<br>
+        <input type="text" value="{{ iss }}" readonly size="100">
+      </label>
+    </p>
+    <p>
+      <label>* login_hint<br>
+        <input type="text" value="{{ login_hint }}" readonly size="100">
+      </label>
+    </p>
+    <p>
+      <label>* lti_message_hint<br>
+        <input type="text" value="{{ lti_message_hint }}" readonly size="100">
+      </label>
+    </p>
+    <p>
+      <label>* target_link_uri<br>
+        <input type="text" value="{{ target_link_uri }}" readonly size="100">
+      </label>
+    </p>
+    <p>
+      <label>* context_id<br>
+        <input type="text" value="{{ context_id }}" readonly size="100">
+      </label>
+    </p>
+    <p>
+      <label>* context_label<br>
+        <input type="text" value="{{ context_label }}" readonly size="100">
+      </label>
+    </p>
+    <p>
+      <label>* context_title<br>
+        <input type="text" value="{{ context_title }}" readonly size="100">
+      </label>
+    </p>
+    <p>
+      <label>* client_id<br>
+        <input type="text" value="{{ client_id }}" readonly size="100">
+      </label>
+    </p>
+    <p>
+      <label>post_url<br>
+        <input type="text" value="{{ post_url }}" readonly size="100">
+      </label>
+    </p>
     <input type="hidden" name="iss" value="{{ iss }}">
     <input type="hidden" name="login_hint" value="{{ login_hint }}">
     <input type="hidden" name="lti_message_hint" value="{{ lti_message_hint }}">
@@ -12,7 +58,7 @@
     <input type="hidden" name="context_label" value="{{ context_label }}">
     <input type="hidden" name="context_title" value="{{ context_title }}">
     <input type="hidden" name="client_id" value="{{ client_id }}">
-    <button type="submit">Continue</button>
+    <button type="submit">Continue to {{ post_url }}</button>
   </form>
 </body>
 </html>
