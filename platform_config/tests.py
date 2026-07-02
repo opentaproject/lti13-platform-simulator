@@ -1,10 +1,13 @@
 import base64
+from unittest.mock import Mock, patch
 
 from cryptography.hazmat.primitives import serialization
+from django.contrib.auth.models import User
 from django.test import TestCase
+from django.urls import reverse
 
 from .keys import generate_keypair, get_or_create_platform_key, public_key_to_jwk
-from .models import LTIPlatformKey
+from .models import LTIPlatformKey, LTIToolRegistration
 
 
 def b64url_to_int(value):
@@ -53,3 +56,91 @@ class JwksViewTests(TestCase):
         data = response.json()
         self.assertEqual(len(data["keys"]), 1)
         self.assertEqual(data["keys"][0]["kty"], "RSA")
+
+
+class ToolRegistrationAdminImportTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            username="admin",
+            email="admin@example.com",
+            password="pw12345",
+        )
+        self.client.force_login(self.admin)
+
+    def _mock_urlopen(self, payload):
+        response = Mock()
+        response.read.return_value = payload.encode("utf-8")
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        return response
+
+    def test_change_list_shows_configure_by_url_link(self):
+        response = self.client.get(
+            reverse("admin:platform_config_ltitoolregistration_changelist")
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse("admin:platform_config_ltitoolregistration_configure_by_url"),
+        )
+
+    @patch("platform_config.views.urllib.request.urlopen")
+    def test_configure_by_url_imports_registration(self, mock_urlopen):
+        mock_urlopen.return_value = self._mock_urlopen(
+            """
+            {
+              "title": "OpenTA Demo",
+              "target_link_uri": "https://lti13.openta-demo.org/launch",
+              "oidc_initiation_url": "https://lti13.openta-demo.org/oidc/init",
+              "public_jwk_url": "https://lti13.openta-demo.org/.well-known/jwks.json"
+            }
+            """
+        )
+
+        response = self.client.post(
+            reverse("admin:platform_config_ltitoolregistration_configure_by_url"),
+            {
+                "config_url": "https://lti13.openta-demo.org/lti13/config.json",
+                "client_id": "client-123",
+                "deployment_id": "deployment-123",
+                "resource_link_id": "resource-123",
+            },
+        )
+
+        registration = LTIToolRegistration.objects.get()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(registration.name, "OpenTA Demo")
+        self.assertEqual(registration.client_id, "client-123")
+        self.assertEqual(
+            registration.oidc_init_url, "https://lti13.openta-demo.org/oidc/init"
+        )
+        self.assertEqual(registration.launch_url, "https://lti13.openta-demo.org/launch")
+        self.assertEqual(
+            registration.tool_jwks_url,
+            "https://lti13.openta-demo.org/.well-known/jwks.json",
+        )
+        self.assertEqual(registration.target_link_uri, registration.launch_url)
+        self.assertEqual(registration.deployment_id, "deployment-123")
+        self.assertEqual(registration.resource_link_id, "resource-123")
+        self.assertEqual(registration.issuer, "http://testserver")
+
+    @patch("platform_config.views.urllib.request.urlopen")
+    def test_configure_by_url_rejects_missing_required_json_fields(self, mock_urlopen):
+        mock_urlopen.return_value = self._mock_urlopen('{"title": "OpenTA Demo"}')
+
+        response = self.client.post(
+            reverse("admin:platform_config_ltitoolregistration_configure_by_url"),
+            {
+                "config_url": "https://lti13.openta-demo.org/lti13/config.json",
+                "client_id": "client-123",
+                "deployment_id": "deployment-123",
+                "resource_link_id": "resource-123",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Config JSON is missing required field(s): oidc_initiation_url, target_link_uri, public_jwk_url",
+        )
+        self.assertEqual(LTIToolRegistration.objects.count(), 0)

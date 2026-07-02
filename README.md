@@ -21,14 +21,19 @@ python manage.py runserver
 ## Configuring a tool registration
 
 1. Go to `http://localhost:8000/admin/` and log in as the superuser.
-2. Under "LTI tool registrations," add a registration with the tool's
-   OIDC init URL, launch URL, client ID, deployment ID, and the simulated
-   course/context fields.
-3. Set this platform's issuer (e.g. `http://localhost:8000` for local testing,
+2. Under "LTI tool registrations," either add a registration manually or use
+   "Configure by URL" to import the tool's `config.json`.
+3. For "Configure by URL," paste the tool's config URL, for example
+   `https://lti13.openta-demo.org/lti13/config.json`. The simulator will
+   import the tool's OIDC init URL, target/launch URL, title, and JWKS URL,
+   and will use your supplied or generated client ID and deployment ID.
+4. For manual registration, fill in the tool's OIDC init URL, launch URL,
+   client ID, deployment ID, and the simulated course/context fields.
+5. Set this platform's issuer (e.g. `http://localhost:8000` for local testing,
    or your public hostname if testing against a deployed tool) in the
    registration's `issuer` field — this becomes the `iss` claim the tool
    must be configured to trust.
-4. The platform's public key is served at `http://localhost:8000/jwks.json`.
+6. The platform's public key is served at `http://localhost:8000/jwks.json`.
    Configure the tool's developer-key / platform config to fetch keys from
    that URL.
 
