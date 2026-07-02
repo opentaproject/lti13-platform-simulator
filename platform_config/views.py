@@ -1,4 +1,5 @@
 import json
+import urllib.error
 import urllib.request
 
 from django.core.exceptions import ValidationError
@@ -13,8 +14,33 @@ def jwks(request):
 
 
 def load_tool_config(config_url, timeout=10):
-    with urllib.request.urlopen(config_url, timeout=timeout) as response:
-        payload = response.read().decode("utf-8")
+    request = urllib.request.Request(
+        config_url,
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (X11; Linux x86_64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/126.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json,text/plain,*/*",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            payload = response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        body = ""
+        try:
+            body = exc.read().decode("utf-8", errors="replace").strip()
+        except Exception:
+            body = ""
+        if body:
+            raise ValidationError(
+                f"Config URL returned HTTP {exc.code}: {body[:300]}"
+            ) from exc
+        raise ValidationError(
+            f"Config URL returned HTTP {exc.code}: {exc.reason}"
+        ) from exc
     try:
         return json.loads(payload)
     except json.JSONDecodeError as exc:
