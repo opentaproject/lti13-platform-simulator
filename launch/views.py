@@ -141,7 +141,7 @@ def auth_callback(request):
     try:
         launch_state = LTILaunchState.objects.get(state=login_hint)
     except LTILaunchState.DoesNotExist:
-        raise ValueError(f"Unknown or already-used login_hint: {login_hint!r}")
+        return HttpResponseBadRequest(f"Unknown or already-used login_hint: {login_hint!r}")
 
     if launch_state.is_expired():
         launch_state.delete()

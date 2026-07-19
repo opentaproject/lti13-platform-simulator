@@ -1,5 +1,6 @@
 import base64
-from unittest.mock import Mock, patch
+import json
+from unittest.mock import patch
 
 from cryptography.hazmat.primitives import serialization
 from django.contrib.auth.models import User
@@ -58,6 +59,7 @@ class JwksViewTests(TestCase):
         self.assertEqual(data["keys"][0]["kty"], "RSA")
 
 
+<<<<<<< HEAD
 class ToolRegistrationAdminImportTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_superuser(
@@ -144,3 +146,88 @@ class ToolRegistrationAdminImportTests(TestCase):
             "Config JSON is missing required field(s): oidc_initiation_url, target_link_uri, public_jwk_url",
         )
         self.assertEqual(LTIToolRegistration.objects.count(), 0)
+class ConfigureByUrlViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="admin", password="pw12345")
+
+    def _valid_payload(self, **overrides):
+        payload = {
+            "name": "OpenTA2",
+            "client_id": "client-123",
+            "oidc_init_url": "https://lti13.example.org/oidc/init",
+            "launch_url": "https://lti13.example.org/launch",
+            "tool_jwks_url": "https://lti13.example.org/.well-known/jwks.json",
+            "target_link_uri": "https://lti13.example.org/launch",
+            "deployment_id": "deploy-1",
+            "issuer": "https://simulator.example.org",
+            "resource_link_id": "resource-1",
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_requires_login(self):
+        response = self.client.get("/configure-by-url/")
+        self.assertEqual(response.status_code, 302)
+
+    def test_get_renders_configuration_form(self):
+        self.client.force_login(self.user)
+        response = self.client.get("/configure-by-url/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Configure Tool By URL")
+        self.assertContains(response, 'name="config_url"')
+
+    def test_post_valid_json_and_fields_saves_registration_with_checklist(self):
+        self.client.force_login(self.user)
+        with patch(
+            "platform_config.views._fetch_config_json",
+            return_value=json.dumps(self._valid_payload()),
+        ):
+            response = self.client.post(
+                "/configure-by-url/",
+                {"config_url": "https://tool.example.org/lti/config.json"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(LTIToolRegistration.objects.count(), 1)
+        registration = LTIToolRegistration.objects.get()
+        self.assertEqual(registration.name, "OpenTA2")
+        self.assertContains(response, "PASS: Valid JSON")
+        self.assertContains(response, "PASS: Field formats")
+        self.assertContains(response, "PASS: Registration saved")
+
+    def test_post_invalid_json_returns_example_and_does_not_save(self):
+        self.client.force_login(self.user)
+        with patch(
+            "platform_config.views._fetch_config_json",
+            return_value='{"name": "OpenTA2",',
+        ):
+            response = self.client.post(
+                "/configure-by-url/",
+                {"config_url": "https://tool.example.org/lti/config.json"},
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(LTIToolRegistration.objects.exists())
+        self.assertContains(response, "FAIL: Valid JSON", status_code=400)
+        self.assertContains(response, "Example JSON", status_code=400)
+        self.assertContains(response, "oidc_init_url", status_code=400)
+
+    def test_post_malformed_field_reports_field_failure_and_does_not_save(self):
+        self.client.force_login(self.user)
+        payload = self._valid_payload(oidc_init_url="not-a-url", client_id="")
+        with patch(
+            "platform_config.views._fetch_config_json",
+            return_value=json.dumps(payload),
+        ):
+            response = self.client.post(
+                "/configure-by-url/",
+                {"config_url": "https://tool.example.org/lti/config.json"},
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(LTIToolRegistration.objects.exists())
+        self.assertContains(response, "PASS: Valid JSON", status_code=400)
+        self.assertContains(response, "FAIL: OIDC init URL", status_code=400)
+        self.assertContains(response, "`oidc_init_url` must be an absolute http or https URL.", status_code=400)
+        self.assertContains(response, "FAIL: Client ID", status_code=400)
+        self.assertContains(response, "`client_id` cannot be blank.", status_code=400)
