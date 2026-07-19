@@ -9,7 +9,7 @@
   <form method="post">
     {% csrf_token %}
     <label>target_link_uri <input type="text" name="target_link_uri" value="{{ target_link_uri }}" size="60"></label><br>
-    <small>The destination URL the tool should treat as this launch target. Leave the remembered value unless you want to launch a different course/page.</small><br><br>
+    <small>This is the entire course URL.</small><br><br>
     <label>context_id <input type="text" name="context_id" value="{{ context_id }}" size="60"></label><br>
     <small>A unique string identifying this target_link_uri. Reuse the same context_id when later launches should resolve back to the same remembered target and course context.</small><br><br>
     <label>context_label <input type="text" name="context_label" value="{{ context_label }}" size="60"></label><br>
