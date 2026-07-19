@@ -1,6 +1,6 @@
 import base64
 import json
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from cryptography.hazmat.primitives import serialization
 from django.contrib.auth.models import User
@@ -59,7 +59,6 @@ class JwksViewTests(TestCase):
         self.assertEqual(data["keys"][0]["kty"], "RSA")
 
 
-<<<<<<< HEAD
 class ToolRegistrationAdminImportTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_superuser(
