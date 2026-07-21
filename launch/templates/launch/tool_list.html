@@ -1,6 +1,70 @@
 <!DOCTYPE html>
 <html>
-<head><title>LTI Tools</title></head>
+<head>
+  <title>LTI Tools</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+      margin: 32px;
+      max-width: 960px;
+    }
+    form {
+      margin: 0 0 20px;
+    }
+    .configure-form {
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      padding: 16px;
+      max-width: 720px;
+    }
+    .configure-form label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .configure-form textarea {
+      box-sizing: border-box;
+      display: block;
+      font: inherit;
+      margin: 0 0 12px;
+      min-height: 40px;
+      padding: 8px;
+      resize: vertical;
+      width: 100%;
+    }
+    button {
+      cursor: pointer;
+      padding: 6px 12px;
+    }
+    .inline-form {
+      display: inline;
+      margin: 0;
+    }
+    .trash-button {
+      align-items: center;
+      background: transparent;
+      border: 0;
+      color: #cf222e;
+      display: inline-flex;
+      padding: 4px;
+    }
+    .trash-button svg {
+      height: 18px;
+      width: 18px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th,
+    td {
+      border-bottom: 1px solid #d0d7de;
+      padding: 8px;
+      text-align: left;
+    }
+  </style>
+</head>
 <body>
   <h1>Available LTI Tools</h1>
   <p>
@@ -10,30 +74,80 @@
     {% csrf_token %}
     <button type="submit">Log out</button>
   </form>
-  <ul>
-    {% for registration in registrations %}
-      <li><a href="{% url 'launch_init' registration.id %}">{{ registration.name }}</a></li>
-    {% endfor %}
-  </ul>
-  <h2>Saved Launches</h2>
+  <h2>Configure Tool By URL</h2>
+  <form class="configure-form" method="post" action="{% url 'configure_by_url' %}">
+    {% csrf_token %}
+    <label for="config_url">Configuration URL</label>
+    <textarea id="config_url" name="config_url" rows="1" placeholder="https://example.org/lti13/config.json"></textarea>
+    <button type="submit">Configure</button>
+  </form>
+  <h2>Saved LTI Tools</h2>
+  <p>Click to Add App by ClientID</p>
   <table>
     <thead>
       <tr>
-        <th>target_link_uri</th>
+        <th>pk</th>
+        <th>tool</th>
+        <th>ClientID</th>
+        <th>deployment_id</th>
+        <th>delete</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for registration in registrations %}
+        <tr>
+          <td>{{ registration.pk }}</td>
+          <td><a href="{% url 'launch_init' registration.id %}">{{ registration.name }}</a></td>
+          <td>{{ registration.client_id }}</td>
+          <td>{{ registration.deployment_id }}</td>
+          <td>
+            <form class="inline-form" method="post" action="{% url 'delete_registration' registration.id %}">
+              {% csrf_token %}
+              <button class="trash-button" type="submit" aria-label="Delete {{ registration.name }}">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="currentColor" d="M9 3h6l1 2h5v2H3V5h5l1-2Zm1 6h2v9h-2V9Zm4 0h2v9h-2V9ZM6 9h2v11h8V9h2v13H6V9Z"/>
+                </svg>
+              </button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="5">No configured tools.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <h2>Saved App Instance</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>oidc_initiation_url</th>
         <th>registration</th>
         <th>context_id</th>
+        <th>delete</th>
       </tr>
     </thead>
     <tbody>
       {% for launch in launches %}
         <tr>
-          <td><a href="{% url 'launch_init' launch.registration.id %}?launch={{ launch.id }}">{{ launch.target_link_uri }}</a></td>
+          <td><a href="{% url 'launch_oidc_init' launch.id %}">{{ launch.registration.oidc_init_url }}</a></td>
           <td>{{ launch.registration.name }}</td>
           <td>{{ launch.context_id }}</td>
+          <td>
+            <form class="inline-form" method="post" action="{% url 'delete_launch' launch.id %}">
+              {% csrf_token %}
+              <button class="trash-button" type="submit" aria-label="Delete launch {{ launch.id }}">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="currentColor" d="M9 3h6l1 2h5v2H3V5h5l1-2Zm1 6h2v9h-2V9Zm4 0h2v9h-2V9ZM6 9h2v11h8V9h2v13H6V9Z"/>
+                </svg>
+              </button>
+            </form>
+          </td>
         </tr>
       {% empty %}
         <tr>
-          <td colspan="3">No saved launches.</td>
+          <td colspan="4">No saved app instances.</td>
         </tr>
       {% endfor %}
     </tbody>

@@ -1,22 +1,51 @@
 <!DOCTYPE html>
 <html>
-<head><title>Launching {{ registration.name }}</title></head>
+<head>
+  <title>Add App by ClientID</title>
+  <style>
+    .button-add {
+      background: #1a7f37;
+      border: 0;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      padding: 8px 14px;
+    }
+    .button-note {
+      margin-left: 8px;
+    }
+  </style>
+</head>
 <body>
-  <p>Launching {{ registration.name }} as <strong>{{ user.username }}</strong> with role <strong>{{ user.profile.role }}</strong>.</p>
+  <h1>Add App by ClientID</h1>
+  <p><strong>ClientID</strong> {{ registration.client_id }}</p>
   {% if error_message %}
   <p><strong>Error:</strong> {{ error_message }}</p>
   {% endif %}
+  <h2>LTI Configuration</h2>
+  <table>
+    <tbody>
+      {% for label, value in config_fields %}
+        <tr>
+          <th>{{ label }}</th>
+          <td><input type="text" value="{{ value }}" size="80" readonly></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <h2>Editable Fields</h2>
+  <p>These fields which are editable here are supplied by canvas and depend on the canvas course into which the app is installed.</p>
   <form method="post">
     {% csrf_token %}
-    <label>target_link_uri <input type="text" name="target_link_uri" value="{{ target_link_uri }}" size="60"></label><br>
-    <small>The destination URL the tool should treat as this launch target. This is the entire course URL.</small><br><br>
+    <input type="hidden" name="target_link_uri" value="{{ target_link_uri }}">
     <label>context_id <input type="text" name="context_id" value="{{ context_id }}" size="60"></label><br>
     <small>A unique string identifying this target_link_uri. Reuse the same context_id when later launches should resolve back to the same remembered target and course context.</small><br><br>
     <label>context_label <input type="text" name="context_label" value="{{ context_label }}" size="60"></label><br>
-    <small>A short course code or label shown in the simulated LTI context claim, for example <code>FFM516</code>.</small><br><br>
+    <small>A short course code or label shown in the simulated LTI context claim.</small><br><br>
     <label>context_title <input type="text" name="context_title" value="{{ context_title }}" size="60"></label><br>
     <small>The full course title sent in the simulated LTI context claim.</small><br><br>
-    <button type="submit">Continue to OIDC Init</button>
+    <button class="button-add" type="submit">Add App</button><span class="button-note">Save app configuration and return to the main page.</span>
   </form>
 </body>
 </html>

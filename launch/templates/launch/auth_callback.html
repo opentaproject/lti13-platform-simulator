@@ -1,12 +1,40 @@
 <!DOCTYPE html>
 <html>
-<head><title>Completing launch</title></head>
-<body onload="document.forms[0].submit()">
-  <p>Completing launch...</p>
+<head>
+  <title>Completing launch</title>
+  <style>
+    pre {
+      background: #f6f8fa;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      overflow: auto;
+      padding: 12px;
+    }
+    .button-submit {
+      background: #1a7f37;
+      border: 0;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      padding: 8px 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Inspect before submitting launch JWT</h1>
+  <h2>OIDC Authorization Redirect Payload</h2>
+  <pre>{{ request_payload_json }}</pre>
+  <h2>Launch State</h2>
+  <pre>{{ launch_state_json }}</pre>
+  <h2>JWT Payload</h2>
+  <pre>{{ jwt_payload_json }}</pre>
+  <h2>JWT</h2>
+  <pre>{{ id_token }}</pre>
   <form method="post" action="{{ launch_url }}">
     <input type="hidden" name="id_token" value="{{ id_token }}">
     <input type="hidden" name="state" value="{{ state }}">
-    <button type="submit">Continue</button>
+    <button class="button-submit" type="submit">Continue to {{ launch_url }}</button>
   </form>
 </body>
 </html>

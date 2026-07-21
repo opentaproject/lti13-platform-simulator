@@ -23,7 +23,7 @@ class LTIPlatformKeyAdmin(admin.ModelAdmin):
 
 @admin.register(LTIToolRegistration)
 class LTIToolRegistrationAdmin(admin.ModelAdmin):
-    list_display = ("name", "client_id", "issuer", "deployment_id")
+    list_display = ("id", "name", "client_id", "issuer", "deployment_id")
     change_list_template = "admin/platform_config/ltitoolregistration/change_list.html"
 
     def get_urls(self):

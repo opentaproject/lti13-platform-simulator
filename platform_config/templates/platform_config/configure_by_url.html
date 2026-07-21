@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Configure Tool By URL</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+      margin: 32px;
+      max-width: 960px;
+    }
+    pre {
+      background: #f6f8fa;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      overflow: auto;
+      padding: 12px;
+    }
+    .check-table {
+      border-collapse: collapse;
+      margin: 8px 0 18px;
+      width: 100%;
+    }
+    .check-table th,
+    .check-table td {
+      border-bottom: 1px solid #d0d7de;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .check-table th:nth-child(2),
+    .check-table td:nth-child(2) {
+      width: 80px;
+    }
+    .status-pass {
+      color: #1a7f37;
+      font-weight: 700;
+    }
+    .status-fail {
+      color: #cf222e;
+      font-weight: 700;
+    }
+    .actions {
+      border-top: 1px solid #d0d7de;
+      margin-top: 24px;
+      padding-top: 16px;
+    }
+    .button {
+      border: 0;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      display: inline-block;
+      font: inherit;
+      padding: 8px 14px;
+      text-decoration: none;
+    }
+    .button-save {
+      background: #1a7f37;
+    }
+    .button-cancel {
+      background: #cf222e;
+    }
+  </style>
+</head>
+<body>
+  <h1>Configure Tool By URL</h1>
+  <form method="post">
+    {% csrf_token %}
+    <label>Configuration URL <input type="url" name="config_url" value="{{ config_url }}" size="80"></label>
+    <button type="submit">Configure</button>
+  </form>
+
+  {% if stage_checks %}
+    <h2>Checklist</h2>
+    <table class="check-table">
+      <thead>
+        <tr>
+          <th>Object</th>
+          <th>Status</th>
+          <th>Explanation</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for check in stage_checks %}
+          <tr>
+            <td>{{ check.label }}</td>
+            <td class="{% if check.passed %}status-pass{% else %}status-fail{% endif %}">{% if check.passed %}PASS{% else %}FAIL{% endif %}</td>
+            <td>{{ check.detail }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if pretty_json %}
+    <h2>Returned JSON</h2>
+    <pre>{{ pretty_json }}</pre>
+  {% endif %}
+
+  {% if config_error %}
+    <h2>Configuration URL Error</h2>
+    <pre>{{ config_error }}</pre>
+  {% endif %}
+
+  {% if field_checks %}
+    <h2>Field Formats</h2>
+    <table class="check-table">
+      <thead>
+        <tr>
+          <th>Object</th>
+          <th>Status</th>
+          <th>Explanation</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for check in field_checks %}
+          <tr>
+            <td>{{ check.label }}</td>
+            <td class="{% if check.passed %}status-pass{% else %}status-fail{% endif %}">{% if check.passed %}PASS{% else %}FAIL{% endif %}</td>
+            <td>{{ check.detail }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if jwks_pretty_json or jwks_checks or jwks_error %}
+    <h2>public_jwk_url Check</h2>
+    {% if jwks_pretty_json %}
+      <h3>Returned public_jwk_url JSON</h3>
+      <pre>{{ jwks_pretty_json }}</pre>
+    {% endif %}
+    {% if jwks_error %}
+      <h3>public_jwk_url Error</h3>
+      <pre>{{ jwks_error }}</pre>
+    {% endif %}
+    {% if jwks_checks %}
+      <table class="check-table">
+        <thead>
+          <tr>
+            <th>Object</th>
+            <th>Status</th>
+            <th>Explanation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for check in jwks_checks %}
+            <tr>
+              <td>{{ check.label }}</td>
+              <td class="{% if check.passed %}status-pass{% else %}status-fail{% endif %}">{% if check.passed %}PASS{% else %}FAIL{% endif %}</td>
+              <td>{{ check.detail }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  {% endif %}
+
+  {% if has_error %}
+    <h2>Example JSON</h2>
+    <pre>{{ example_json }}</pre>
+  {% endif %}
+
+  {% if can_save %}
+    <div class="actions">
+      <p>Created {{ pending_title }}</p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save">
+        <input type="hidden" name="config_payload" value="{{ config_payload }}">
+        <button class="button button-save" type="submit">Save</button>
+        <a class="button button-cancel" href="{% url 'tool_list' %}">Cancel</a>
+      </form>
+    </div>
+  {% elif saved_registration %}
+    <div class="actions">
+      <p>Saved {{ saved_registration.name }} with pk {{ saved_registration.pk }}.</p>
+      <p><a href="{% url 'tool_list' %}">Return to main page</a></p>
+    </div>
+  {% elif has_error %}
+    <div class="actions">
+      <a class="button button-cancel" href="{% url 'tool_list' %}">Cancel</a>
+    </div>
+  {% endif %}
+</body>
+</html>

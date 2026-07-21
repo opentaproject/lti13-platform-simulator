@@ -1,9 +1,35 @@
 <!DOCTYPE html>
 <html>
-<head><title>Submitting OIDC Init</title></head>
+<head>
+  <title>Submitting OIDC Init</title>
+  <style>
+    pre {
+      background: #f6f8fa;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      overflow: auto;
+      padding: 12px;
+    }
+    .button-submit {
+      background: #1a7f37;
+      border: 0;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      padding: 8px 14px;
+    }
+    .inspect-heading {
+      color: #1a7f37;
+      font-weight: 700;
+    }
+  </style>
+</head>
 <body>
-  <p>Submitting OIDC init for {{ registration.name }}...</p>
+  <p class="inspect-heading">Inspect before submitting to oidc/init for client-id = {{ client_id }}</p>
   <p><strong>*</strong> means "normally hidden, shown here for debugging".</p>
+  <h2>JSON submitted to OIDC init</h2>
+  <pre>{{ oidc_init_payload_json }}</pre>
   <form method="post" action="{{ post_url }}" onsubmit="this.action = this.elements.post_url.value;">
     <p>
       <label>* iss<br>
@@ -50,7 +76,7 @@
         <input type="text" name="post_url" value="{{ post_url }}" size="100">
       </label>
     </p>
-    <button type="submit">Continue to {{ post_url }}</button>
+    <button class="button-submit" type="submit">Continue to {{ post_url }}</button>
   </form>
 </body>
 </html>

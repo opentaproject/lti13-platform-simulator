@@ -12,6 +12,9 @@ urlpatterns = [
     path("login/", auth_views.LoginView.as_view(), name="login"),
     path("logout/", auth_views.LogoutView.as_view(next_page="login"), name="logout"),
     path("", launch_views.tool_list, name="tool_list"),
+    path("registration/<int:registration_id>/delete/", launch_views.delete_registration, name="delete_registration"),
+    path("launch-record/<int:launch_id>/delete/", launch_views.delete_launch, name="delete_launch"),
+    path("launch-record/<int:launch_id>/oidc-init/", launch_views.launch_oidc_init, name="launch_oidc_init"),
     path("launch/<int:registration_id>/init/", launch_views.launch_init, name="launch_init"),
     path("api/lti/authorize_redirect", launch_views.auth_callback, name="auth_callback"),
 ]

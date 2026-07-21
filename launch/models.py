@@ -30,7 +30,7 @@ class UserProfile(models.Model):
 
 class Launch(models.Model):
     registration = models.ForeignKey(LTIToolRegistration, on_delete=models.CASCADE)
-    target_link_uri = models.URLField(unique=True, blank=True, null=True)
+    target_link_uri = models.URLField(blank=True, null=True)
     context_id = models.CharField(max_length=255, blank=True, default="")
     context_label = models.CharField(max_length=255, blank=True, default="")
     context_title = models.CharField(max_length=255, blank=True, default="")

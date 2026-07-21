@@ -43,7 +43,6 @@ def build_claims(user, registration, tool_nonce, *, target_link_uri=None, contex
 
 
 def sign_launch_jwt(user, registration, tool_nonce, *, target_link_uri=None, context=None):
-    platform_key = get_or_create_platform_key()
     claims = build_claims(
         user,
         registration,
@@ -51,6 +50,11 @@ def sign_launch_jwt(user, registration, tool_nonce, *, target_link_uri=None, con
         target_link_uri=target_link_uri,
         context=context,
     )
+    return sign_claims(claims)
+
+
+def sign_claims(claims):
+    platform_key = get_or_create_platform_key()
     print(f"LTI JWT payload:\n{json.dumps(claims, indent=2)}")
     return jwt.encode(
         claims,

@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 import jwt as pyjwt
 from cryptography.hazmat.primitives import serialization
@@ -84,6 +85,19 @@ class ToolListViewTests(TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.registration.name)
+        self.assertContains(response, "Saved LTI Tools")
+        self.assertContains(response, "Click to Add App by ClientID")
+        self.assertContains(response, "<th>pk</th>", html=True)
+        self.assertContains(response, "<th>ClientID</th>", html=True)
+        self.assertContains(response, "<th>deployment_id</th>", html=True)
+        self.assertContains(response, "<th>delete</th>", html=True)
+        self.assertContains(response, f"<td>{self.registration.pk}</td>", html=True)
+        self.assertContains(response, f"<td>{self.registration.client_id}</td>", html=True)
+        self.assertContains(response, f"<td>{self.registration.deployment_id}</td>", html=True)
+        self.assertContains(response, f'action="/registration/{self.registration.id}/delete/"')
+        self.assertContains(response, f'aria-label="Delete {self.registration.name}"')
+        self.assertContains(response, 'action="/configure-by-url/"')
+        self.assertContains(response, '<textarea id="config_url" name="config_url" rows="1"', html=False)
 
     def test_lists_saved_launches_with_links(self):
         launch = Launch.objects.create(
@@ -96,10 +110,34 @@ class ToolListViewTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, launch.target_link_uri)
+        self.assertContains(response, "Saved App Instance")
+        self.assertContains(response, self.registration.oidc_init_url)
         self.assertContains(response, self.registration.name)
         self.assertContains(response, launch.context_id)
-        self.assertContains(response, f'/launch/{self.registration.id}/init/?launch={launch.id}')
+        self.assertContains(response, "<th>oidc_initiation_url</th>", html=True)
+        self.assertContains(response, f"<td>{launch.context_id}</td>", html=True)
+        self.assertContains(response, f'/launch-record/{launch.id}/oidc-init/')
+        self.assertContains(response, f'action="/launch-record/{launch.id}/delete/"')
+        self.assertContains(response, f'aria-label="Delete launch {launch.id}"')
+
+    def test_delete_registration_removes_configuration(self):
+        self.client.force_login(self.user)
+        response = self.client.post(f"/registration/{self.registration.id}/delete/")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
+        self.assertFalse(LTIToolRegistration.objects.filter(id=self.registration.id).exists())
+
+    def test_delete_launch_removes_saved_launch(self):
+        launch = Launch.objects.create(
+            registration=self.registration,
+            target_link_uri="https://test7.openta.dev",
+            context_id="course-1",
+        )
+        self.client.force_login(self.user)
+        response = self.client.post(f"/launch-record/{launch.id}/delete/")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
+        self.assertFalse(Launch.objects.filter(id=launch.id).exists())
 
     def test_logout_works_via_post(self):
         self.client.force_login(self.user)
@@ -115,12 +153,29 @@ class LaunchInitViewTests(TestCase):
 
     def test_renders_context_form_on_get(self):
         self.client.force_login(self.user)
-        response = self.client.get(f"/launch/{self.registration.id}/init/")
+        with patch("launch.views.random.randint", return_value=472):
+            response = self.client.get(f"/launch/{self.registration.id}/init/")
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.user.username)
-        self.assertContains(response, self.user.profile.role)
-        self.assertContains(response, "The destination URL the tool should treat as this launch target")
+        self.assertContains(response, "Add App by ClientID")
+        self.assertContains(response, f"ClientID</strong> {self.registration.client_id}", html=False)
+        self.assertNotContains(response, f"Launching {self.registration.name}")
+        self.assertContains(response, "LTI Configuration")
+        self.assertContains(response, "oidc_initiation_url")
+        self.assertContains(response, self.registration.oidc_init_url)
+        self.assertContains(response, "public_jwk_url")
+        self.assertContains(response, self.registration.tool_jwks_url)
+        self.assertContains(response, self.registration.target_link_uri)
+        self.assertContains(response, "Editable Fields")
+        self.assertContains(response, "These fields which are editable here are supplied by canvas and depend on the canvas course into which the app is installed.")
+        self.assertContains(response, f'<input type="hidden" name="target_link_uri" value="{self.registration.target_link_uri}">', html=True)
+        self.assertNotContains(response, 'placeholder="https://canvas.example.edu/courses/123/external_tools/456"')
+        self.assertContains(response, 'name="context_id" value="cs-472-year-id"', html=False)
+        self.assertContains(response, 'name="context_label" value="cs-472-year-label"', html=False)
+        self.assertContains(response, 'name="context_title" value="cs-472-year-title"', html=False)
         self.assertContains(response, "A unique string identifying this target_link_uri")
+        self.assertContains(response, '<button class="button-add" type="submit">Add App</button>', html=True)
+        self.assertContains(response, "Save app configuration and return to the main page.")
+        self.assertNotContains(response, "Continue to OIDC Init")
         self.assertContains(response, 'name="context_id"')
         self.assertContains(response, 'name="context_label"')
         self.assertContains(response, 'name="context_title"')
@@ -144,7 +199,31 @@ class LaunchInitViewTests(TestCase):
         self.assertContains(response, 'name="context_title"')
         self.assertContains(response, "Exam Grading Course")
 
-    def test_get_prefills_from_most_recent_launch_for_registration(self):
+    def test_can_submit_generated_example_context_values_without_editing(self):
+        self.client.force_login(self.user)
+        with patch("launch.views.random.randint", return_value=472):
+            response = self.client.get(f"/launch/{self.registration.id}/init/")
+
+        post_response = self.client.post(
+            f"/launch/{self.registration.id}/init/",
+            {
+                "target_link_uri": self.registration.target_link_uri,
+                "context_id": "cs-472-year-id",
+                "context_label": "cs-472-year-label",
+                "context_title": "cs-472-year-title",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(post_response.status_code, 302)
+        self.assertEqual(post_response.url, "/")
+        launch = Launch.objects.get(registration=self.registration)
+        self.assertEqual(launch.context_id, "cs-472-year-id")
+        self.assertEqual(launch.context_label, "cs-472-year-label")
+        self.assertEqual(launch.context_title, "cs-472-year-title")
+        self.assertFalse(LTILaunchState.objects.filter(user=self.user, registration=self.registration).exists())
+
+    def test_get_prefills_from_registration_config_for_direct_launch_init(self):
         other_registration = make_registration(name="Other", client_id="client-456")
         Launch.objects.create(
             registration=other_registration,
@@ -153,7 +232,7 @@ class LaunchInitViewTests(TestCase):
             context_label="OTHER",
             context_title="Other Course",
         )
-        latest = Launch.objects.create(
+        Launch.objects.create(
             registration=self.registration,
             target_link_uri="https://test7.openta.dev",
             context_id="course-1",
@@ -165,10 +244,12 @@ class LaunchInitViewTests(TestCase):
         response = self.client.get(f"/launch/{self.registration.id}/init/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, latest.target_link_uri)
-        self.assertContains(response, latest.context_id)
-        self.assertContains(response, latest.context_label)
-        self.assertContains(response, latest.context_title)
+        self.assertContains(response, self.registration.target_link_uri)
+        self.assertContains(response, self.registration.oidc_init_url)
+        self.assertContains(response, self.registration.tool_jwks_url)
+        self.assertNotContains(response, 'name="context_id" value="course-1"')
+        self.assertNotContains(response, 'name="context_label" value="FFM516"')
+        self.assertNotContains(response, 'name="context_title" value="Exam Grading Course"')
         self.assertNotContains(response, "https://other.openta.dev")
 
     def test_get_prefills_from_selected_launch(self):
@@ -197,7 +278,7 @@ class LaunchInitViewTests(TestCase):
         self.assertContains(response, selected.context_title)
         self.assertNotContains(response, "https://other.openta.dev")
 
-    def test_post_upserts_launch_by_target_link_uri_and_creates_launch_state(self):
+    def test_post_upserts_launch_by_client_id_and_context_id_and_returns_home(self):
         existing = Launch.objects.create(
             registration=self.registration,
             target_link_uri="https://test7.openta.dev",
@@ -215,23 +296,16 @@ class LaunchInitViewTests(TestCase):
                 "context_title": "Exam Grading Course",
             },
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
         existing.refresh_from_db()
         self.assertEqual(existing.context_id, "course-1")
         self.assertEqual(existing.context_label, "FFM516")
         self.assertEqual(existing.context_title, "Exam Grading Course")
-        launch_state = LTILaunchState.objects.get(user=self.user, registration=self.registration)
-        self.assertEqual(launch_state.launch_id, existing.pk)
-        self.assertEqual(launch_state.target_link_uri, "https://test7.openta.dev")
-        self.assertEqual(launch_state.context_id, "course-1")
-        self.assertEqual(launch_state.context_label, "FFM516")
-        self.assertEqual(launch_state.context_title, "Exam Grading Course")
-        self.assertContains(response, self.registration.oidc_init_url)
-        self.assertContains(response, launch_state.state)
-        self.assertContains(response, self.registration.client_id)
+        self.assertFalse(LTILaunchState.objects.filter(user=self.user, registration=self.registration).exists())
 
-    def test_post_rejects_target_link_uri_collision_with_different_context_id(self):
-        Launch.objects.create(
+    def test_post_allows_same_client_id_with_different_context_id(self):
+        existing = Launch.objects.create(
             registration=self.registration,
             target_link_uri="https://test7.openta.dev",
             context_id="course-1",
@@ -248,16 +322,22 @@ class LaunchInitViewTests(TestCase):
                 "context_title": "New Course",
             },
         )
-        self.assertEqual(response.status_code, 400)
-        self.assertContains(
-            response,
-            "Collision: target_link_uri https://test7.openta.dev is already bound to context_id course-1.",
-            status_code=400,
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
+        existing.refresh_from_db()
+        self.assertEqual(existing.context_id, "course-1")
+        self.assertTrue(
+            Launch.objects.filter(
+                registration=self.registration,
+                target_link_uri="https://test7.openta.dev",
+                context_id="course-2",
+            ).exists()
         )
+        self.assertEqual(Launch.objects.count(), 2)
         self.assertFalse(LTILaunchState.objects.filter(user=self.user, registration=self.registration).exists())
 
-    def test_post_rejects_context_id_collision_with_different_target_link_uri(self):
-        Launch.objects.create(
+    def test_post_same_client_id_and_context_id_updates_target_link_uri(self):
+        existing = Launch.objects.create(
             registration=self.registration,
             target_link_uri="https://test7.openta.dev",
             context_id="course-1",
@@ -274,13 +354,90 @@ class LaunchInitViewTests(TestCase):
                 "context_title": "Exam Grading Course",
             },
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
+        existing.refresh_from_db()
+        self.assertEqual(existing.target_link_uri, "https://other.openta.dev")
+        self.assertEqual(existing.context_id, "course-1")
+        self.assertEqual(Launch.objects.count(), 1)
+        self.assertFalse(LTILaunchState.objects.filter(user=self.user, registration=self.registration).exists())
+
+    def test_post_same_context_id_with_different_client_id_keeps_contexts_separate(self):
+        other_registration = make_registration(
+            name="Other",
+            client_id="client-456",
+            deployment_id="deploy-2",
+        )
+        existing = Launch.objects.create(
+            registration=self.registration,
+            target_link_uri="https://lti13.openta-demo.org/launch",
+            context_id="course-1",
+            context_label="OLD",
+            context_title="Old Course",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            f"/launch/{other_registration.id}/init/",
+            {
+                "target_link_uri": "https://lti13.openta-demo.org/launch",
+                "context_id": "course-1",
+                "context_label": "NEW",
+                "context_title": "New Course",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
+        existing.refresh_from_db()
+        self.assertEqual(existing.registration, self.registration)
+        self.assertEqual(existing.context_id, "course-1")
+        self.assertEqual(existing.context_label, "OLD")
+        self.assertTrue(
+            Launch.objects.filter(
+                registration=other_registration,
+                target_link_uri="https://lti13.openta-demo.org/launch",
+                context_id="course-1",
+                context_label="NEW",
+            ).exists()
+        )
+        self.assertEqual(Launch.objects.count(), 2)
+
+
+class LaunchOidcInitViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="frank", password="pw12345")
+        self.registration = make_registration()
+
+    def test_saved_app_instance_click_prepares_oidc_init_payload(self):
+        launch = Launch.objects.create(
+            registration=self.registration,
+            target_link_uri="https://test7.openta.dev",
+            context_id="course-1",
+            context_label="FFM516",
+            context_title="Exam Grading Course",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(f"/launch-record/{launch.id}/oidc-init/")
+
+        self.assertEqual(response.status_code, 200)
+        launch_state = LTILaunchState.objects.get(
+            user=self.user,
+            registration=self.registration,
+            launch=launch,
+        )
+        self.assertEqual(launch_state.target_link_uri, launch.target_link_uri)
+        self.assertEqual(launch_state.context_id, launch.context_id)
         self.assertContains(
             response,
-            "Collision: context_id course-1 is already bound to target_link_uri https://test7.openta.dev.",
-            status_code=400,
+            f"Inspect before submitting to oidc/init for client-id = {self.registration.client_id}",
         )
-        self.assertFalse(LTILaunchState.objects.filter(user=self.user, registration=self.registration).exists())
+        self.assertContains(response, "JSON submitted to OIDC init")
+        self.assertContains(response, self.registration.oidc_init_url)
+        self.assertContains(response, launch_state.state)
+        self.assertContains(response, 'name="target_link_uri" value="https://test7.openta.dev"', html=False)
+        self.assertContains(response, 'name="context_id" value="course-1"', html=False)
 
 
 class JwtClaimTests(TestCase):
@@ -374,17 +531,22 @@ class AuthCallbackViewTests(TestCase):
         self.registration = make_registration()
 
     def _create_launch_state(self):
-        self.client.force_login(self.user)
-        self.client.post(
-            f"/launch/{self.registration.id}/init/",
-            {
-                "target_link_uri": "https://test7.openta.dev",
-                "context_id": "course-1",
-                "context_label": "FFM516",
-                "context_title": "Exam Grading Course",
-            },
+        launch = Launch.objects.create(
+            registration=self.registration,
+            target_link_uri="https://test7.openta.dev",
+            context_id="course-1",
+            context_label="FFM516",
+            context_title="Exam Grading Course",
         )
-        return LTILaunchState.objects.get(user=self.user, registration=self.registration)
+        return LTILaunchState.objects.create(
+            user=self.user,
+            registration=self.registration,
+            launch=launch,
+            target_link_uri=launch.target_link_uri,
+            context_id=launch.context_id,
+            context_label=launch.context_label,
+            context_title=launch.context_title,
+        )
 
     def test_valid_callback_signs_and_posts_jwt_then_deletes_state(self):
         launch_state = self._create_launch_state()
@@ -402,6 +564,12 @@ class AuthCallbackViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.registration.launch_url)
         self.assertContains(response, "tool-state-xyz")
+        self.assertContains(response, "OIDC Authorization Redirect Payload")
+        self.assertContains(response, "Launch State")
+        self.assertContains(response, "JWT Payload")
+        self.assertContains(response, "&quot;aud&quot;: &quot;client-123&quot;")
+        self.assertContains(response, "&quot;nonce&quot;: &quot;tool-nonce-xyz&quot;")
+        self.assertContains(response, "&quot;id&quot;: &quot;course-1&quot;")
         self.assertFalse(LTILaunchState.objects.filter(id=launch_state.id).exists())
         self.assertTrue(Launch.objects.filter(target_link_uri="https://test7.openta.dev").exists())
 
@@ -411,6 +579,10 @@ class AuthCallbackViewTests(TestCase):
             {"login_hint": "does-not-exist", "client_id": "x", "nonce": "n", "state": "s"},
         )
         self.assertEqual(response.status_code, 400)
+        self.assertContains(response, "OIDC Init Debug", status_code=400)
+        self.assertContains(response, "Unknown or already-used login_hint", status_code=400)
+        self.assertContains(response, "Request Payload", status_code=400)
+        self.assertContains(response, "does-not-exist", status_code=400)
 
     def test_client_id_mismatch_returns_400(self):
         launch_state = self._create_launch_state()
@@ -424,6 +596,11 @@ class AuthCallbackViewTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 400)
+        self.assertContains(response, "OIDC Init Debug", status_code=400)
+        self.assertContains(response, "client_id does not match", status_code=400)
+        self.assertContains(response, "Launch State", status_code=400)
+        self.assertContains(response, self.registration.client_id, status_code=400)
+        self.assertContains(response, "wrong-client-id", status_code=400)
 
     def test_expired_launch_state_returns_400(self):
         launch_state = self._create_launch_state()
@@ -440,3 +617,7 @@ class AuthCallbackViewTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 400)
+        self.assertContains(response, "OIDC Init Debug", status_code=400)
+        self.assertContains(response, "Launch state has expired.", status_code=400)
+        self.assertContains(response, "Launch State", status_code=400)
+        self.assertContains(response, launch_state.state, status_code=400)
